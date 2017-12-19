@@ -16,26 +16,41 @@ ui <- shinyUI(
                )
                ),
              
+             fluidRow(column(12,
+                             
+                             h5("Welcome to the renal resistive index analysis platform.
+                                Please enter your information and upload images below.")
+                             
+                             )
+                      ),
+             
+             hr(),
+             
+             sidebarPanel(
+                             # Input: Select a file ----
+                             fileInput(inputId = "files", 
+                                       label = "Select Images to Analyze",
+                                       multiple = TRUE,
+                                       accept = c("image/jpeg")),
+                             
+                             # Input: Select reader ----
+                             radioButtons("reader", "Anesthesiologist Reading",
+                                          choices = c('Anne Cherry, MD' = "ac",
+                                                      'Mark Stafford-Smith, MD' = "mss"),
+                                          selected = "ac"),
+                             
+                             ## Button to advance to next tab
+                             actionButton(inputId = "go_to_read",
+                                          label = "Analyze Images")
+                             
+                             ),
+             
              mainPanel(
                
-                      # Input: Select a file ----
-                      fileInput(inputId = "files", 
-                                label = "Select Images to Analyze",
-                                multiple = TRUE,
-                                accept = c("image/jpeg")),
-                      
-                      # Input: Select reader ----
-                      radioButtons("reader", "Anesthesiologist Reading",
-                                   choices = c('Anne Cherry, MD' = "ac",
-                                               'Mark Stafford-Smith, MD' = "mss"),
-                                   selected = "ac"),
-                      
-                      ## Button to advance to next tab
-                      actionButton(inputId = "go_to_read",
-                                   label = "Analyze Images")
-                      
+               imageOutput("logo")
+               
              )
-                      
+             
              ),
     
     tabPanel("Step 2", id = "analysis_tab",
@@ -57,15 +72,14 @@ ui <- shinyUI(
    tags$style(HTML(".js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {background: purple; border-top-color: purple; border-bottom-color: purple; border-color: purple}")),
    tags$style(HTML(".js-irs-5 .irs-single, .js-irs-5 .irs-bar-edge, .js-irs-5 .irs-bar {background: yellow; border-top-color: yelow; border-bottom-color: yellow; border-color: yellow}")),
    tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: pink; border-top-color: pink; border-bottom-color: pink; border-color: pink}")),
-   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: tan; border-top-color: tan; border-bottom-color: tan; border-color: tan}")),
+   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: brown; border-top-color: brown; border-bottom-color: brown; border-color: brown}")),
+   tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: black; border-top-color: black; border-bottom-color: black; border-color: black}")),
    
    
    ## Remove Slider Colors
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
    
-   fluidRow(
-     
-     column(2,
+   sidebarPanel(width = 3,
 
             ## Slider on/off boxes
             selectInput(inputId = "metric_select", 
@@ -133,10 +147,21 @@ ui <- shinyUI(
             
             downloadButton(outputId = "download_data", label = "Download Data")
      ),
+   
+   mainPanel(width = 9,
      
-     column(10,
+     column(12,
             
             htmlOutput("status"),
+            
+            # Conditional action button to return to tab step 1 after finished
+            conditionalPanel(
+              condition = "output.done",
+              br(),
+              actionButton(inputId = "go_to_entry", 
+                           label = "Upload Additional Files")
+              
+            ),
             
             # Horizontal line ----
             tags$hr(),
@@ -147,21 +172,24 @@ ui <- shinyUI(
                                   choices = c('No' = 0,
                                               'Yes' = 1),
                                   selected = 0,
-                                  inline = TRUE)
+                                  inline = TRUE),
+                     br()
               ),
               column(4,
                      radioButtons("rounded", "Are the Envelopes Rounded?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
                                   selected = 0,
-                                  inline = TRUE)
+                                  inline = TRUE),
+                     br()
               ),
               column(4,
                      radioButtons("flat_diastole", "Is a Diastole Relatively Flat?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
                                   selected = 1,
-                                  inline = TRUE)
+                                  inline = TRUE),
+                     br()
               )
             ),
             
@@ -169,24 +197,43 @@ ui <- shinyUI(
             # Output: Data file ----
             
             fluidRow(
-              column(11,
+              column(12,
                      conditionalPanel(
                        condition = "output.fileUploaded",
+                       style = "overflow-y:scroll; max-height: 350px;
+                                overflow-x:scroll; max-width: 1000px",
                        plotOutput(outputId = "image",
                                   click = "click"
                        )
                      )
+              ),
+              
+              column(12,
+                     conditionalPanel(
+                       condition = "output.fileUploaded",
+                       hr(),
+                       sliderInput(inputId = "plot_size", label = "Plot Zoom",
+                                   min = 0.01, max = 2, value = 1, step = 0.01,
+                                   ticks = FALSE)
+                       )
               )
-   
-             )
-    
-    )
+     )
    )
     )
   )
 )
+)
   
 server <- function(input, output, session) {
+  
+  ## Logo output
+  
+  output$logo <- renderImage({
+    
+    list(src = "DUSOM_anesthesiology.jpg",
+         width = "100%")
+    
+  }, deleteFile = FALSE)
   
   # Basic Reactive Values
   rv <- reactiveValues(seq = 1,
@@ -265,14 +312,14 @@ server <- function(input, output, session) {
   output$status <- renderText({
     
     if (is.null(inFile()))
-      return("<b><i><font color = red>No Images have Been Uploaded.  Please Uploaded Files to Continue.</b></i></font>")
+      return("<b><i><font color = red>No Images have Been Uploaded.  Please Upload Files to Continue.</b></i></font>")
     
     if (rv$seq <= nrow(inFile()))
       return(paste("<b><i><font color = red>Current Image ID: ", file_name()[rv$seq], "<br>Progress: Image ", 
             rv$seq, " of ", image_total(), "</b></i></font>", sep = ""))
     
     if (rv$seq > nrow(inFile()))
-      return("<b><i><font color = red>All images have been analyzed.  Please exit the browser, or upload additional images to continue</b></i><font color = red>")
+      return("<b><i><font color = red>All images have been analyzed.  Please exit the browser, or click below to upload additional images.</b></i><font color = red>")
     
   })
   
@@ -327,6 +374,10 @@ server <- function(input, output, session) {
       fade = TRUE,
       size = "m"
     ))
+      
+    ## Reset zoom slider
+    updateSliderInput(session, "plot_zoom", val = 1)
+   
    
     ## Reset structure reactive values
     structures$bl <- 625
@@ -380,6 +431,13 @@ server <- function(input, output, session) {
   })
   
   # Move to analysis tab panel with button click
+  observeEvent(input$go_to_entry, {
+    
+    updateNavbarPage(session, inputId = "tabs", selected = "Step 1")
+    
+  })
+  
+  # Move to upload tab panel with button click
   observeEvent(input$go_to_read, {
     
     updateNavbarPage(session, inputId = "tabs", selected = "Step 2")
@@ -394,6 +452,23 @@ server <- function(input, output, session) {
     content = function(file) {
       write.csv(rv$data, file, row.names = FALSE)
     })
+  
+  ## Define image dimensions
+  
+  img_dim <- reactive({
+    
+    if(is.null(inFile())){
+      return(NULL)
+    } else if (rv$seq > nrow(inFile())){
+      return(NULL)
+    } else {
+      img <- readJPEG(inFile()$datapath[rv$seq], native = TRUE) 
+      x <- dim(img)[2]
+      y <- dim(img)[1]
+      return(c(x, y) * input$plot_size)
+    }
+      
+  })
   
   ## Image generation
   observe({
@@ -461,14 +536,14 @@ server <- function(input, output, session) {
           
           ## Trough 3
           segments(structures$trough3_x - 50, x1 = structures$trough3_x + 50, y0 = structures$trough3, y1 = structures$trough3,
-                   col = "tan",
+                   col = "brown",
                    lwd = 3)
         })
         
       }
  
-  }, width = if(is.null(inFile())){100} else if(rv$seq > nrow(inFile())){100} else{dim(readJPEG(inFile()$datapath[rv$seq]))[2]},
-     height = if(is.null(inFile())){100} else if(rv$seq > nrow(inFile())){100} else{dim(readJPEG(inFile()$datapath[rv$seq]))[1]})
+  }, width = if(is.null(img_dim())){100} else{img_dim()[1]},
+     height = if(is.null(img_dim())){100} else{img_dim()[2]})
     
   })
   
@@ -693,8 +768,23 @@ server <- function(input, output, session) {
     
   })
   
+  ## Conditional Panel for action button when finished
+  
+  output$done <- reactive({
+    
+    return(!is.null(inFile()) & (rv$seq > image_total()))
+    
+  })
+  
   outputOptions(output, 'fileUploaded', suspendWhenHidden=FALSE)
+  outputOptions(output, 'done', suspendWhenHidden=FALSE)
+  
+  
 }
+
+
+
+
 
 
 # Run the application 
