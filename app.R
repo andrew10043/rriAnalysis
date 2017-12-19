@@ -2,15 +2,51 @@ library(shiny)
 library(shinyjs)
 library(jpeg)
 
-ui <- fluidPage(
-
-   useShinyjs(),
-   
-   tags$head(tags$style(
-     HTML('body, label, input, button, select { 
-          font-family: "Avenir";
-          font-size:10px;
-        }')
+ui <- shinyUI(
+  navbarPage(
+    "Renal Resistive Index Analysis", id = "tabs",
+    
+    tabPanel("Step 1",
+             
+             tags$head(tags$style(
+               HTML('body, label, input, button, select {
+                    font-family: "Avenir";
+                    font-size:10px;
+                    }')
+               )
+               ),
+             
+             mainPanel(
+               
+                      # Input: Select a file ----
+                      fileInput(inputId = "files", 
+                                label = "Select Images to Analyze",
+                                multiple = TRUE,
+                                accept = c("image/jpeg")),
+                      
+                      # Input: Select reader ----
+                      radioButtons("reader", "Anesthesiologist Reading",
+                                   choices = c('Anne Cherry, MD' = "ac",
+                                               'Mark Stafford-Smith, MD' = "mss"),
+                                   selected = "ac"),
+                      
+                      ## Button to advance to next tab
+                      actionButton(inputId = "go_to_read",
+                                   label = "Analyze Images")
+                      
+             )
+                      
+             ),
+    
+    tabPanel("Step 2", id = "analysis_tab",
+             
+             useShinyjs(),
+             
+             tags$head(tags$style(
+               HTML('body, label, input, button, select { 
+                    font-family: "Avenir";
+                    font-size:10px;
+                    }')
    )),
    
    ## Slider Colors
@@ -26,150 +62,130 @@ ui <- fluidPage(
    
    ## Remove Slider Colors
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
- 
-   titlePanel("Renal Resistive Index Analysis"),
-   
-   hr(),
    
    fluidRow(
      
      column(2,
- 
-       # Input: Select a file ----
-       fileInput(inputId = "files", 
-                 label = "Select Images to Analyze",
-                 multiple = TRUE,
-                 accept = c("image/jpeg")),
-      
-       # Input: Select reader ----
-       radioButtons("reader", "Anesthesiologist Reading",
-                    choices = c('Anne Cherry, MD' = "ac",
-                                'Mark Stafford-Smith, MD' = "mss"),
-                    selected = "ac"),
-       
-       # Horizontal line ----
-       tags$hr(),
-       
-       
-       ## Slider on/off boxes
-       selectInput(inputId = "metric_select", 
-                   label = "Select a Metric to Move",
-                   choices = c("Baseline" = "bl_select",
-                               "Scale" = "velo_select",
-                               "Peak 1" = "p1_select",
-                               "Peak 2" = "p2_select",
-                               "Peak 3" = "p3_select",
-                               "Trough 1" = "t1_select",
-                               "Trough 2" = "t2_select",
-                               "Trough 3" = "t3_select"),
-                    selected = "bl_select"),
-       
-       ## Sliders
-       fluidRow(
-         column(6,
-                sliderInput("bl_slider", "Baseline",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("p1_slider", "Peak 1",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("p3_slider", "Peak 3",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE),
-                
-                sliderInput("t2_slider", "Trough 2",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE)
-                
-                ),
-         
-         column(6, 
-                
-                sliderInput("velo_slider", "Scale",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("p2_slider", "Peak 2",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("t1_slider", "Trough 1",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE),
-                
-                sliderInput("t3_slider", "Trough 3",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE)
 
-                )
-       ),
-
-       
-       
-       # Horizontal line ----
-       tags$hr(),
-       
-       actionButton(inputId = "submit", label = "Submit Image"),
-       
-       hr(),
-       
-       downloadButton(outputId = "download_data", label = "Download Data")
-       ),
+            ## Slider on/off boxes
+            selectInput(inputId = "metric_select", 
+                        label = "Select a Metric to Move",
+                        choices = c("Baseline" = "bl_select",
+                                    "Scale" = "velo_select",
+                                    "Peak 1" = "p1_select",
+                                    "Peak 2" = "p2_select",
+                                    "Peak 3" = "p3_select",
+                                    "Trough 1" = "t1_select",
+                                    "Trough 2" = "t2_select",
+                                    "Trough 3" = "t3_select"),
+                        selected = "bl_select"),
+            
+            ## Sliders
+            fluidRow(
+              column(6,
+                     sliderInput("bl_slider", "Baseline",
+                                 min = 1, max = 640, value = 625,
+                                 ticks = FALSE),
+                     
+                     sliderInput("p1_slider", "Peak 1",
+                                 min = 1, max = 640, value = 625,
+                                 ticks = FALSE),
+                     
+                     sliderInput("p3_slider", "Peak 3",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE),
+                     
+                     sliderInput("t2_slider", "Trough 2",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE)
+                     
+              ),
+              
+              column(6, 
+                     
+                     sliderInput("velo_slider", "Scale",
+                                 min = 1, max = 640, value = 625,
+                                 ticks = FALSE),
+                     
+                     sliderInput("p2_slider", "Peak 2",
+                                 min = 1, max = 640, value = 625,
+                                 ticks = FALSE),
+                     
+                     sliderInput("t1_slider", "Trough 1",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE),
+                     
+                     sliderInput("t3_slider", "Trough 3",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE)
+                     
+              )
+            ),
+            
+            
+            
+            # Horizontal line ----
+            tags$hr(),
+            
+            actionButton(inputId = "submit", label = "Submit Image"),
+            
+            hr(),
+            
+            downloadButton(outputId = "download_data", label = "Download Data")
+     ),
      
      column(10,
-
-       htmlOutput("status"),
-       
-       # Horizontal line ----
-       tags$hr(),
-       
-       fluidRow(
-         column(4,
-                radioButtons("dicrotic", "Is a Dicrotic Notch Present?",
-                             choices = c('No' = 0,
-                                         'Yes' = 1),
-                             selected = 0,
-                             inline = TRUE)
-                ),
-         column(4,
-                radioButtons("rounded", "Are the Envelopes Rounded?",
-                             choices = c('No' = 0,
-                                         'Yes' = 1),
-                             selected = 0,
-                             inline = TRUE)
-                ),
-         column(4,
-                radioButtons("flat_diastole", "Is a Diastole Relatively Flat?",
-                             choices = c('No' = 0,
-                                         'Yes' = 1),
-                             selected = 1,
-                             inline = TRUE)
-         )
-       ),
-       
-       
-       # Output: Data file ----
-      
-       fluidRow(
-         column(11,
-                conditionalPanel(
-                  condition = "output.fileUploaded",
-                  plotOutput(outputId = "image",
-                             click = "click"
-                  )
-         )
-       )
-       
-       )
-       
-     )
-     
+            
+            htmlOutput("status"),
+            
+            # Horizontal line ----
+            tags$hr(),
+            
+            fluidRow(
+              column(4,
+                     radioButtons("dicrotic", "Is a Dicrotic Notch Present?",
+                                  choices = c('No' = 0,
+                                              'Yes' = 1),
+                                  selected = 0,
+                                  inline = TRUE)
+              ),
+              column(4,
+                     radioButtons("rounded", "Are the Envelopes Rounded?",
+                                  choices = c('No' = 0,
+                                              'Yes' = 1),
+                                  selected = 0,
+                                  inline = TRUE)
+              ),
+              column(4,
+                     radioButtons("flat_diastole", "Is a Diastole Relatively Flat?",
+                                  choices = c('No' = 0,
+                                              'Yes' = 1),
+                                  selected = 1,
+                                  inline = TRUE)
+              )
+            ),
+            
+            
+            # Output: Data file ----
+            
+            fluidRow(
+              column(11,
+                     conditionalPanel(
+                       condition = "output.fileUploaded",
+                       plotOutput(outputId = "image",
+                                  click = "click"
+                       )
+                     )
+              )
+   
+             )
+    
+    )
    )
+    )
+  )
 )
-       
-
+  
 server <- function(input, output, session) {
   
   # Basic Reactive Values
@@ -357,6 +373,17 @@ server <- function(input, output, session) {
     ## Sliders available after images uploaded; deactivate after all are read
     toggleState(id = "y_pos", condition = all(c(!is.null(input$files),
                                                 rv$seq <= nrow(input$files))))
+    
+    ## Analyze Image Button available after files uploaded
+    toggleState(id = "go_to_read", condition = !is.null(inFile()))
+    
+  })
+  
+  # Move to analysis tab panel with button click
+  observeEvent(input$go_to_read, {
+    
+    updateNavbarPage(session, inputId = "tabs", selected = "Step 2")
+    
   })
   
   ## Define data download output
