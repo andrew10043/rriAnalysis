@@ -4,7 +4,7 @@ library(jpeg)
 
 cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
           "#FF6900", "#FF00EB", "#00F7FF", "#8C174C",
-          "#000000")
+          "#000000", "#8B888A")
 
 ui <- shinyUI(
   navbarPage(
@@ -78,8 +78,10 @@ ui <- shinyUI(
    tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: #00F7FF; border-top-color: #00F7FF; border-bottom-color: #00F7FF; border-color: #00F7FF}")),
    tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: #8C174C; border-top-color: #8C174C; border-bottom-color: #8C174C; border-color: #8C174C}")),
    tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
+   tags$style(HTML(".js-irs-9 .irs-single, .js-irs-9 .irs-bar-edge, .js-irs-9 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
    
-   ## Remove Slider Colors
+   
+   ## Remove Slider Numbers
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
    
    sidebarPanel(width = 3,
@@ -105,7 +107,7 @@ ui <- shinyUI(
             
             numericInput(inputId = "velo_num", 
                          label = "What velocity (cm/s) is marked by the scale icon?", 
-                         value = NULL),
+                         value = NA),
 
             ## Slider on/off boxes
             selectInput(inputId = "metric_select", 
@@ -147,7 +149,7 @@ ui <- shinyUI(
                                  min = 1, max = 640, value = 525,
                                  ticks = FALSE),
                      
-                     sliderInput("t1_slider", "Trough 2",
+                     sliderInput("t1_slider", "Trough 1",
                                  min = 1, max = 640, value = 525,
                                  ticks = FALSE),
                      
@@ -238,8 +240,8 @@ ui <- shinyUI(
               column(12,
                      conditionalPanel(
                        condition = "output.fileUploaded",
-                       style = "overflow-y:scroll; max-height: 350px;
-                                overflow-x:scroll; max-width: 1000px",
+                       style = "overflow-y:scroll; max-height: 100%;
+                                overflow-x:scroll; max-width: 100%",
                        plotOutput(outputId = "image",
                                   click = "click"
                        )
@@ -250,9 +252,14 @@ ui <- shinyUI(
                      conditionalPanel(
                        condition = "output.fileUploaded",
                        hr(),
-                       sliderInput(inputId = "plot_size", label = "Plot Zoom",
+                       column(6,
+                              sliderInput(inputId = "plot_size", label = "Plot Zoom",
                                    min = 0.01, max = 2, value = 1, step = 0.01,
-                                   ticks = FALSE)
+                                   ticks = FALSE)),
+                       column(6,
+                              sliderInput(inputId = "nudge", label = "Adjust Marker",
+                                          min = 0, max = 1000, value = 500,
+                                          ticks = FALSE))
                        )
               )
      )
@@ -299,11 +306,14 @@ server <- function(input, output, session) {
     rv$data <- data.frame("image_id" = NA,
                           "date_time_submit" = NA,
                           "anesthesiologist_measuring" = NA,
+                          "image_unmeasurable" = NA,
+                          "num_beats" = NA,
                           "dicrotic_notch" = NA,
                           "rounded_envelope" = NA,
                           "flat_diastole" = NA,
                           "baseline" = NA,
                           "scale" = NA,
+                          "velo_num" = NA,
                           "peak_1" = NA,
                           "peak_2" = NA,
                           "peak_3" = NA,
@@ -312,6 +322,25 @@ server <- function(input, output, session) {
                           "trough_3" = NA)
     
     rv$seq <- 1
+    
+    ## Reset structure reactive values
+    structures$bl <- img_dim()[2] - 10
+    structures$velo <- img_dim()[2] - 10
+    structures$peak1 <- img_dim()[2] - 10
+    structures$peak2 <- img_dim()[2] - 10
+    structures$peak3 <- img_dim()[2] - 20
+    structures$trough1 <- img_dim()[2] - 20
+    structures$trough2 <- img_dim()[2] - 20
+    structures$trough3 <- img_dim()[2] - 20
+    structures$bl_x <- 50
+    structures$velo_x <- 100
+    structures$peak1_x <- 150
+    structures$peak2_x <- 200
+    structures$peak3_x <- 50
+    structures$trough1_x <- 100
+    structures$trough2_x <- 150
+    structures$trough3_x <- 200
+    structures$click <- 50
     
   })
   
@@ -357,7 +386,7 @@ server <- function(input, output, session) {
             rv$seq, " of ", image_total(), "</b></i></font>", sep = ""))
     
     if (rv$seq > nrow(inFile()))
-      return("<b><i><font color = red>All images have been analyzed.  Please exit the browser, or click below to upload additional images.</b></i><font color = red>")
+      return("<b><i><font color = red>All images have been analyzed.  Please download the data file by clicking below prior to uploading additional images.</b></i><font color = red>")
     
   })
   
@@ -384,6 +413,13 @@ server <- function(input, output, session) {
   
   ## Submit button pressed
   observeEvent(input$submit, {
+    
+    ## Reset velo_num
+    
+    updateNumericInput(session,
+                       inputId = "velo_num", 
+                       label = "What velocity (cm/s) is marked by the scale icon?", 
+                       value = NA)
     
     ## Reset radio buttons
     
@@ -428,11 +464,14 @@ server <- function(input, output, session) {
     rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                            "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                            "anesthesiologist_measuring" = input$reader,
+                           "image_unmeasurable" = input$can_read,
+                           "num_beats" = input$num_beats,
                            "dicrotic_notch" = input$dicrotic,
                            "rounded_envelope" = input$rounded,
                            "flat_diastole" = input$flat_diastole,
                            "baseline" = structures$bl,
                            "scale" = structures$velo,
+                           "velo_num" = input$velo_num,
                            "peak_1" = structures$peak1,
                            "peak_2" = structures$peak2,
                            "peak_3" = structures$peak3,
@@ -445,11 +484,14 @@ server <- function(input, output, session) {
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                              "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                              "anesthesiologist_measuring" = input$reader,
+                             "image_unmeasurable" = input$can_read,
+                             "num_beats" = input$num_beats,
                              "dicrotic_notch" = NA,
                              "rounded_envelope" = NA,
                              "flat_diastole" = NA,
                              "baseline" = structures$bl,
                              "scale" = structures$velo,
+                             "velo_num" = input$velo_num,
                              "peak_1" = structures$peak1,
                              "peak_2" = structures$peak2,
                              "peak_3" = structures$peak3,
@@ -566,6 +608,8 @@ server <- function(input, output, session) {
   
   observeEvent(img_dim(), {
 
+    updateSliderInput(session, "nudge", max = img_dim()[2],
+                      value = img_dim()[2] - 10)
     updateSliderInput(session, "velo_slider", max = img_dim()[2],
                       value = img_dim()[2] - 10)
     updateSliderInput(session, "p1_slider", max = img_dim()[2],
@@ -662,8 +706,50 @@ server <- function(input, output, session) {
     
   })
   
+  ## Select metric - switch position of nudge slider
+  observeEvent(input$metric_select, {
+    
+    if (input$metric_select == "bl_select"){
+
+      updateSliderInput(session, "nudge", val = input$bl_slider)
+      
+    } else if (input$metric_select == "velo_select"){
+      
+      updateSliderInput(session, "nudge", val = input$velo_slider)
+      
+    } else if (input$metric_select == "p1_select"){
+      
+      updateSliderInput(session, "nudge", val = input$p1_slider)
+      
+    } else if (input$metric_select == "p2_select"){
+      
+      updateSliderInput(session, "nudge", val = input$p2_slider)
+      
+    } else if (input$metric_select == "p3_select"){
+      
+      updateSliderInput(session, "nudge", val = input$p3_slider)
+      
+    } else if (input$metric_select == "t1_select"){
+      
+      updateSliderInput(session, "nudge", val = input$t1_slider)
+      
+    } else if (input$metric_select == "t2_select"){
+      
+      updateSliderInput(session, "nudge", val = input$t2_slider)
+      
+    } else if (input$metric_select == "t3_select"){
+      
+      updateSliderInput(session, "nudge", val = input$t3_slider)  
+      
+    }
+    
+  })
+  
+  
   ## User clicks on image
   observeEvent(input$click, {
+    
+    updateSliderInput(session, "nudge", val = input$click$y)
     
     ## Movement of lines depends on selected radio button
     ## Slider values are updated with click
@@ -672,7 +758,7 @@ server <- function(input, output, session) {
       structures$bl <- input$click$y
       structures$bl_x <- input$click$x
       updateSliderInput(session, "bl_slider", val = input$click$y)
-      
+
     } else if (input$metric_select == "velo_select"){
       
       structures$velo <- input$click$y
@@ -973,6 +1059,56 @@ server <- function(input, output, session) {
     
   })
 
+  ## User moves marker slider
+  
+  observeEvent(input$nudge, {
+    
+    ## Movement of lines depends on selected radio button
+    ## Slider values are updated with click
+    if (input$metric_select == "bl_select"){
+      
+      structures$bl <- input$nudge
+      updateSliderInput(session, "bl_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "velo_select"){
+      
+      structures$velo <- input$nudge
+      updateSliderInput(session, "velo_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "p1_select"){
+      
+      structures$peak1 <- input$nudge
+      updateSliderInput(session, "p1_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "p2_select"){
+      
+      structures$peak2 <- input$nudge
+      updateSliderInput(session, "p2_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "p3_select"){
+      
+      structures$peak3 <- input$nudge
+      updateSliderInput(session, "p3_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "t1_select"){
+      
+      structures$trough1 <- input$nudge
+      updateSliderInput(session, "t1_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "t2_select"){
+      
+      structures$trough2 <- input$nudge
+      updateSliderInput(session, "t2_slider", val = input$nudge)
+      
+    } else if (input$metric_select == "t3_select"){
+      
+      structures$trough3 <- input$nudge
+      updateSliderInput(session, "t3_slider", val = input$nudge) 
+      
+    }
+    
+  })
+  
   ## Conditional Panel for uploaded file
 
   output$fileUploaded <- reactive({
