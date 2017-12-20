@@ -1,6 +1,19 @@
 library(shiny)
 library(shinyjs)
 library(jpeg)
+library(googlesheets)
+
+## Google sheets code -----
+
+## Prepare OAuth token and set up target sheet (only do this once)
+# shiny_token <- gs_auth() # authenticate w/ your desired Google identity here
+# saveRDS(shiny_token, "shiny_app_token.rds")
+# ss <- gs_new("1fYdh-PDPQn-7xumHxGlisSy7hSAjXWPwaxidr6ah_tw")
+
+# Identify sheet and authenticate with token
+googlesheets::gs_auth(token = "shiny_app_token.rds")
+sheet_key <- "1fYdh-PDPQn-7xumHxGlisSy7hSAjXWPwaxidr6ah_tw"
+ss <- googlesheets::gs_key(sheet_key)
 
 cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
           "#FF6900", "#FF00EB", "#00F7FF", "#8C174C",
@@ -115,10 +128,10 @@ ui <- shinyUI(
                         choices = c("Baseline" = "bl_select",
                                     "Scale" = "velo_select",
                                     "Peak 1" = "p1_select",
-                                    "Peak 2" = "p2_select",
-                                    "Peak 3" = "p3_select",
                                     "Trough 1" = "t1_select",
+                                    "Peak 2" = "p2_select",
                                     "Trough 2" = "t2_select",
+                                    "Peak 3" = "p3_select",
                                     "Trough 3" = "t3_select"),
                         selected = "bl_select"),
             
@@ -252,13 +265,19 @@ ui <- shinyUI(
                      conditionalPanel(
                        condition = "output.fileUploaded",
                        hr(),
-                       column(6,
-                              sliderInput(inputId = "plot_size", label = "Plot Zoom",
-                                   min = 0.01, max = 2, value = 1, step = 0.01,
-                                   ticks = FALSE)),
-                       column(6,
+                       
+                       column(4, align = "center",
                               sliderInput(inputId = "nudge", label = "Adjust Marker",
                                           min = 0, max = 1000, value = 500,
+                                          ticks = FALSE)
+                              ),
+                       column(3, align = "center",
+                              br(),
+                              actionButton(inputId = "next_metric", label = "Next Metric")
+                              ),
+                       column(4, align = "center",
+                              sliderInput(inputId = "plot_size", label = "Plot Zoom",
+                                          min = 0.01, max = 2, value = 1, step = 0.01,
                                           ticks = FALSE))
                        )
               )
@@ -448,10 +467,10 @@ server <- function(input, output, session) {
                       choices = c("Baseline" = "bl_select",
                                   "Scale" = "velo_select",
                                   "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
                                   "Trough 1" = "t1_select",
+                                  "Peak 2" = "p2_select",
                                   "Trough 2" = "t2_select",
+                                  "Peak 3" = "p3_select",
                                   "Trough 3" = "t3_select"),
                       selected = "bl_select"
     ) 
@@ -479,6 +498,8 @@ server <- function(input, output, session) {
                            "trough_2" = structures$trough2,
                            "trough_3" = structures$trough3)
     
+    gs_add_row(ss, input = rv$data[rv$seq, ])
+    
     } else if (input$can_read == 1){
       
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
@@ -499,6 +520,7 @@ server <- function(input, output, session) {
                              "trough_2" = structures$trough2,
                              "trough_3" = structures$trough3)
       
+      gs_add_row(ss, input = as.character(rv$data[rv$seq, ]))
     }
     
     ## Increase seq reactive value by 1
@@ -551,6 +573,10 @@ server <- function(input, output, session) {
   ## Toggle status of inputs
   observe({
     
+    ## Next metric available after image uploaded; deactivate after all are read
+    toggleState(id = "next_metric", condition = all(c(!is.null(input$files), 
+                                                 rv$seq <= nrow(input$files))))
+    
     ## Submit available after images uploaded; deactivate after all are read
     toggleState(id = "submit", condition = all(c(!is.null(input$files), 
                                                  rv$seq <= nrow(input$files))))
@@ -576,6 +602,287 @@ server <- function(input, output, session) {
     
     updateNavbarPage(session, inputId = "tabs", selected = "Step 2")
     
+  })
+  
+  
+  ## User clicks next metric
+  
+  observeEvent(input$next_metric, {
+
+    if (input$num_beats == 3){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p2_select"
+        ) 
+        
+      } else if (input$metric_select == "p2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t2_select"
+        ) 
+        
+      } else if (input$metric_select == "t2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p3_select"
+        ) 
+        
+      } else if (input$metric_select == "p3_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t3_select"
+        ) 
+        
+      } else if (input$metric_select == "t3_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "bl_select"
+        ) 
+        
+      }
+      
+    } else if (input$num_beats == 2){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "p2_select"
+        ) 
+        
+      } else if (input$metric_select == "p2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "t2_select"
+        ) 
+        
+      } else if (input$metric_select == "t2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "bl_select"
+        ) 
+        
+      }
+      
+    } else if (input$num_beats == 1){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric to Move",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "bl_select"
+        ) 
+        
+      } 
+      
+    }
+
   })
   
   ## Define data download output
