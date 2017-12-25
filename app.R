@@ -24,7 +24,8 @@ cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
 
 calculateRRI <- function(values, index) {
   
-  
+  return((abs(values$peaks[index] - values$bl) - abs(values$troughs[index] - values$bl)) / 
+    abs(values$peaks[index] - values$bl))
   
 }
 
@@ -396,20 +397,12 @@ server <- function(input, output, session) {
     ## Reset structure reactive values
     structures$bl <- img_dim()[2] - 10
     structures$velo <- img_dim()[2] - 10
-    structures$peak1 <- img_dim()[2] - 10
-    structures$peak2 <- img_dim()[2] - 10
-    structures$peak3 <- img_dim()[2] - 30
-    structures$trough1 <- img_dim()[2] - 30
-    structures$trough2 <- img_dim()[2] - 30
-    structures$trough3 <- img_dim()[2] - 30
+    structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
+    structures$troughs <- rep(img_dim()[2] - 30, 3)
     structures$bl_x <- 50
     structures$velo_x <- 125
-    structures$peak1_x <- 200
-    structures$peak2_x <- 275
-    structures$peak3_x <- 50
-    structures$trough1_x <- 125
-    structures$trough2_x <- 200
-    structures$trough3_x <- 275
+    structures$peaks_x <- c(200, 275, 50)
+    structures$troughs_x <- c(125, 200, 275)
     structures$click <- 50
     
   })
@@ -580,18 +573,15 @@ server <- function(input, output, session) {
                            "baseline" = structures$bl,
                            "scale" = structures$velo,
                            "velo_num" = input$velo_num,
-                           "peak_1" = structures$peak1,
-                           "peak_2" = structures$peak2,
-                           "peak_3" = structures$peak3,
-                           "trough_1" = structures$trough1,
-                           "trough_2" = structures$trough2,
-                           "trough_3" = structures$trough3,
-                           "rri_1" = abs((structures$peak1 - structures$bl) - (structures$trough1 - structures$bl)) / 
-                             (abs(structures$peak1 - structures$bl)),
-                           "rri_2" = abs((structures$peak2 - structures$bl) - (structures$trough2 - structures$bl)) / 
-                             (abs(structures$peak2 - structures$bl)),
-                           "rri_3" = abs((structures$peak3 - structures$bl) - (structures$trough3 - structures$bl)) / 
-                             (abs(structures$peak3 - structures$bl)))
+                           "peak_1" = structures$peaks[1],
+                           "peak_2" = structures$peaks[2],
+                           "peak_3" = structures$peaks[3],
+                           "trough_1" = structures$troughs[1],
+                           "trough_2" = structures$troughs[2],
+                           "trough_3" = structures$troughs[3],
+                           "rri_1" = calculateRRI(structures, 1),
+                           "rri_2" = calculateRRI(structures, 2),
+                           "rri_3" = calculateRRI(structures, 3))
     
     if (input$passcode == master_passcode){
       
@@ -612,12 +602,12 @@ server <- function(input, output, session) {
                              "baseline" = structures$bl,
                              "scale" = structures$velo,
                              "velo_num" = input$velo_num,
-                             "peak_1" = structures$peak1,
-                             "peak_2" = structures$peak2,
-                             "peak_3" = structures$peak3,
-                             "trough_1" = structures$trough1,
-                             "trough_2" = structures$trough2,
-                             "trough_3" = structures$trough3,
+                             "peak_1" = structures$peaks[1],
+                             "peak_2" = structures$peaks[2],
+                             "peak_3" = structures$peaks[3],
+                             "trough_1" = structures$troughs[1],
+                             "trough_2" = structures$troughs[2],
+                             "trough_3" = structures$troughs[3],
                              "rri_1" = NA,
                              "rri_2" = NA,
                              "rri_3" = NA)
@@ -649,20 +639,12 @@ server <- function(input, output, session) {
     ## Reset structure reactive values
     structures$bl <- img_dim()[2] - 10
     structures$velo <- img_dim()[2] - 10
-    structures$peak1 <- img_dim()[2] - 10
-    structures$peak2 <- img_dim()[2] - 10
-    structures$peak3 <- img_dim()[2] - 30
-    structures$trough1 <- img_dim()[2] - 30
-    structures$trough2 <- img_dim()[2] - 30
-    structures$trough3 <- img_dim()[2] - 30
+    structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
+    structures$troughs <- rep(img_dim()[2] - 30, 3)
     structures$bl_x <- 50
     structures$velo_x <- 125
-    structures$peak1_x <- 200
-    structures$peak2_x <- 275
-    structures$peak3_x <- 50
-    structures$trough1_x <- 125
-    structures$trough2_x <- 200
-    structures$trough3_x <- 275
+    structures$peaks_x <- c(200, 275, 50)
+    structures$troughs_x <- c(125, 200, 275)
     structures$click <- 50
 
   })
@@ -1372,51 +1354,51 @@ server <- function(input, output, session) {
                font = 2)
           
           ## Peak 1
-          segments(structures$peak1_x - 20, x1 = structures$peak1_x + 20, y0 = structures$peak1, y1 = structures$peak1,
+          segments(structures$peaks_x[1] - 20, x1 = structures$peaks_x[1] + 20, y0 = structures$peaks[1], y1 = structures$peaks[1],
                    col = cols[2],
                    lwd = 3)
           
-          text(x = structures$peak1_x - 35, y = structures$peak1, labels = "P1", col = cols[2],
+          text(x = structures$peaks_x[1] - 35, y = structures$peaks[1], labels = "P1", col = cols[2],
                font = 2)
           
           ## Peak 2
-          segments(structures$peak2_x - 20, x1 = structures$peak2_x + 20, y0 = structures$peak2, y1 = structures$peak2,
+          segments(structures$peaks_x[2] - 20, x1 = structures$peaks_x[2] + 20, y0 = structures$peaks[2], y1 = structures$peaks[2],
                    col = cols[3],
                    lwd = 3)
           
-          text(x = structures$peak2_x - 35, y = structures$peak2, labels = "P2", col = cols[3],
+          text(x = structures$peaks_x[2] - 35, y = structures$peaks[2], labels = "P2", col = cols[3],
                font = 2)
           
           ## Peak 3
-          segments(structures$peak3_x - 20, x1 = structures$peak3_x + 20, y0 = structures$peak3, y1 = structures$peak3,
+          segments(structures$peaks_x[3] - 20, x1 = structures$peaks_x[3] + 20, y0 = structures$peaks[3], y1 = structures$peaks[3],
                    col = cols[4],
                    lwd = 3)
           
-          text(x = structures$peak3_x - 35, y = structures$peak3, labels = "P3", col = cols[4],
+          text(x = structures$peaks_x[3] - 35, y = structures$peaks[3], labels = "P3", col = cols[4],
                font = 2)
           
           ## Trough 1
-          segments(structures$trough1_x - 20, x1 = structures$trough1_x + 20, y0 = structures$trough1, y1 = structures$trough1,
+          segments(structures$troughs_x[1] - 20, x1 = structures$troughs_x[1] + 20, y0 = structures$troughs[1], y1 = structures$troughs[1],
                    col = cols[6],
                    lwd = 3)
           
-          text(x = structures$trough1_x - 35, y = structures$trough1, labels = "T1", col = cols[6],
+          text(x = structures$troughs_x[1] - 35, y = structures$troughs[1], labels = "T1", col = cols[6],
                font = 2)
           
           ## Trough 2
-          segments(structures$trough2_x - 20, x1 = structures$trough2_x + 20, y0 = structures$trough2, y1 = structures$trough2,
+          segments(structures$troughs_x[2] - 20, x1 = structures$troughs_x[2] + 20, y0 = structures$troughs[2], y1 = structures$troughs[2],
                    col = cols[7],
                    lwd = 3)
           
-          text(x = structures$trough2_x - 35, y = structures$trough2, labels = "T2", col = cols[7],
+          text(x = structures$troughs_x[2] - 35, y = structures$troughs[2], labels = "T2", col = cols[7],
                font = 2)
           
           ## Trough 3
-          segments(structures$trough3_x - 20, x1 = structures$trough3_x + 20, y0 = structures$trough3, y1 = structures$trough3,
+          segments(structures$troughs_x[3] - 20, x1 = structures$troughs_x[3] + 20, y0 = structures$troughs[3], y1 = structures$troughs[3],
                    col = cols[8],
                    lwd = 3)
           
-          text(x = structures$trough3_x - 35, y = structures$trough3, labels = "T3", col = cols[8],
+          text(x = structures$troughs_x[3] - 35, y = structures$troughs[3], labels = "T3", col = cols[8],
                font = 2)
         })
         
@@ -1488,38 +1470,38 @@ server <- function(input, output, session) {
     
     } else if (input$metric_select == "p1_select"){
       
-      structures$peak1 <- input$click$y
-      structures$peak1_x <- input$click$x
+      structures$peaks[1] <- input$click$y
+      structures$peaks_x[1] <- input$click$x
       updateSliderInput(session, "p1_slider", val = input$click$y)
         
     } else if (input$metric_select == "p2_select"){
       
-      structures$peak2 <- input$click$y
-      structures$peak2_x <- input$click$x
+      structures$peaks[2] <- input$click$y
+      structures$peaks_x[2] <- input$click$x
       updateSliderInput(session, "p2_slider", val = input$click$y)
       
     } else if (input$metric_select == "p3_select"){
       
-      structures$peak3 <- input$click$y
-      structures$peak3_x <- input$click$x
+      structures$peaks[3] <- input$click$y
+      structures$peaks_x[3] <- input$click$x
       updateSliderInput(session, "p3_slider", val = input$click$y)
       
     } else if (input$metric_select == "t1_select"){
       
-      structures$trough1 <- input$click$y
-      structures$trough1_x <- input$click$x
+      structures$troughs[1] <- input$click$y
+      structures$troughs_x[1] <- input$click$x
       updateSliderInput(session, "t1_slider", val = input$click$y)
       
     } else if (input$metric_select == "t2_select"){
       
-      structures$trough2 <- input$click$y
-      structures$trough2_x <- input$click$x
+      structures$troughs[2] <- input$click$y
+      structures$troughs_x[2] <- input$click$x
       updateSliderInput(session, "t2_slider", val = input$click$y)
       
     } else if (input$metric_select == "t3_select"){
       
-      structures$trough3 <- input$click$y
-      structures$trough3_x <- input$click$x
+      structures$troughs[3] <- input$click$y
+      structures$troughs_x[3] <- input$click$x
       updateSliderInput(session, "t3_slider", val = input$click$y)  
       
     }
@@ -1542,10 +1524,10 @@ server <- function(input, output, session) {
                         selected = "bl_select"
       ) 
       
-      structures$peak2 <- NA
-      structures$peak3 <- NA
-      structures$trough2 <- NA
-      structures$trough3 <- NA
+      structures$peaks[2] <- NA
+      structures$peaks[3] <- NA
+      structures$troughs[2] <- NA
+      structures$troughs[3] <- NA
       
     } else if (input$num_beats == 2){
       
@@ -1561,8 +1543,8 @@ server <- function(input, output, session) {
                         selected = "bl_select"
       ) 
       
-      structures$peak3 <- NA
-      structures$trough3 <- NA
+      structures$peaks[3] <- NA
+      structures$troughs[3] <- NA
       
     } else if (input$num_beats == 3){
       
@@ -1591,12 +1573,8 @@ server <- function(input, output, session) {
       
       structures$bl <- NA
       structures$velo <- NA
-      structures$peak1 <- NA
-      structures$peak2 <- NA
-      structures$peak3 <- NA
-      structures$trough1 <- NA
-      structures$trough2 <- NA
-      structures$trough3 <- NA
+      structures$peaks <- rep(NA, 3)
+      structures$troughs <- rep(NA, 3)
       
     }
     
@@ -1629,7 +1607,7 @@ server <- function(input, output, session) {
   ## Radio button updates
   observeEvent(input$p1_slider, {
     
-    structures$peak1 <- input$p1_slider
+    structures$peaks[1] <- input$p1_slider
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -1648,7 +1626,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$p2_slider, {
     
-    structures$peak2 <- input$p2_slider
+    structures$peaks[2] <- input$p2_slider
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -1667,7 +1645,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$p3_slider, {
     
-    structures$peak3 <- input$p3_slider
+    structures$peaks[3] <- input$p3_slider
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -1687,7 +1665,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$t1_slider, {
     
-    structures$trough1 <- input$t1_slider
+    structures$troughs[1] <- input$t1_slider
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -1706,7 +1684,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$t2_slider, {
     
-    structures$trough2 <- input$t2_slider
+    structures$troughs[2] <- input$t2_slider
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -1725,7 +1703,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$t3_slider, {
     
-    structures$trough3 <- input$t3_slider
+    structures$troughs[3] <- input$t3_slider
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -1798,32 +1776,32 @@ server <- function(input, output, session) {
       
     } else if (input$metric_select == "p1_select"){
       
-      structures$peak1 <- input$nudge
+      structures$peaks[1] <- input$nudge
       updateSliderInput(session, "p1_slider", val = input$nudge)
       
     } else if (input$metric_select == "p2_select"){
       
-      structures$peak2 <- input$nudge
+      structures$peaks[2] <- input$nudge
       updateSliderInput(session, "p2_slider", val = input$nudge)
       
     } else if (input$metric_select == "p3_select"){
       
-      structures$peak3 <- input$nudge
+      structures$peaks[3] <- input$nudge
       updateSliderInput(session, "p3_slider", val = input$nudge)
       
     } else if (input$metric_select == "t1_select"){
       
-      structures$trough1 <- input$nudge
+      structures$troughs[1] <- input$nudge
       updateSliderInput(session, "t1_slider", val = input$nudge)
       
     } else if (input$metric_select == "t2_select"){
       
-      structures$trough2 <- input$nudge
+      structures$troughs[2] <- input$nudge
       updateSliderInput(session, "t2_slider", val = input$nudge)
       
     } else if (input$metric_select == "t3_select"){
       
-      structures$trough3 <- input$nudge
+      structures$troughs[3] <- input$nudge
       updateSliderInput(session, "t3_slider", val = input$nudge) 
       
     }
