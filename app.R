@@ -2,6 +2,10 @@ library(shiny)
 library(shinyjs)
 library(jpeg)
 library(googlesheets)
+library(RMySQL)
+
+## Source global.R to obtain authentication information for MySQL
+source("/global.R")
 
 ## Google sheets code -----
 
@@ -45,8 +49,8 @@ ui <- shinyUI(
              
              fluidRow(column(12,
                              
-                             h5("Welcome to the renal resistive index analysis platform.
-                                Please enter your information and upload images below.")
+                             h5(paste("Welcome to the renal resistive index analysis platform.
+                                Please enter your information and upload images below.", test))
                              
                              )
                       ),
