@@ -1,26 +1,28 @@
-## Load libraries
+# Load libraries
 library(shiny)
 library(shinyjs)
 library(jpeg)
 library(RMySQL)
 
-## Source global.R to obtain authentication information for MySQL
+# Source authentication information for MySQL database ----
 source("db.R")
 
-## Source functions
+# Source functions ----
 source("functions.R")
 
-## Formatting Parameters
+# Formatting Parameters ----
 cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
           "#FF6900", "#FF00EB", "#00F7FF", "#FFFFFF",
           "#000000", "#8B888A")
 
 ui <- shinyUI(
+  
+  # Initialize navbar page ---- 
   navbarPage(
     "Renal Resistive Index Analysis", id = "tabs",
     
+    # File upload interface ----
     tabPanel("Step 1",
-             
              tags$head(tags$style(
                HTML('body, label, input, button, select {
                     font-family: "Avenir";
@@ -29,72 +31,77 @@ ui <- shinyUI(
                )
                ),
              
+             # Entrance Message ----
              fluidRow(column(12,
-                             
-                             h5("Welcome to the renal resistive index analysis platform.
-                                Please enter your information and upload images below.")
-                             
+                             h5("Welcome to the renal resistive index analysis 
+                                platform. Please enter your information and 
+                                upload images below.")
                              )
                       ),
              
+             # Line break ----
              hr(),
              
+             # Sidebar ----
              sidebarPanel(
-                             # Input: Select a file ----
+                             # Select a file ----
                              fileInput(inputId = "files", 
                                        label = "Select Images to Analyze",
                                        multiple = TRUE,
                                        accept = c("image/jpeg")),
                              
-                             
-                             ## Conditional panel showing image ID's uploaded
-                             
+                             # Conditional panel showing image IDs uploaded ----
                              conditionalPanel(condition = "output.fileUploaded",
                                               htmlOutput("files_uploaded")),
                              
+                             # Line break ----
                              hr(),
-                             
+                          
                              # Input: Select reader ----
                              radioButtons("reader", "Anesthesiologist Reading",
                                           choices = c('Anne Cherry, MD' = "ac",
                                                       'Mark Stafford-Smith, MD' = "mss"),
                                           selected = "ac"),
                              
+                             # Line break ----
                              hr(),
 
-                             
-                             ## Passcode to enable remote file upload
+                             # Passcode input to enable remote file upload ----
                              passwordInput(inputId = "passcode",
                                            label = "Data Upload Passcode",
                                            value = ""),
                              
-                             ## Action button to check passcode for user
+                             # Action button to verify passcode ----
                              actionButton(inputId = "check_pass",
                                           label = "Verify Passcode"),
                              
+                             # Breaks ----
                              br(),
                              br(),
                              
-                             ## Text of passcode verification
-                            
+                             # Text of passcode verification result ----
                              htmlOutput(outputId = "pass_text"),
                              
+                             # Line break ----
                              hr(),
                              
-                             ## Button to advance to next tab
+                             # Button to advance to analysisinterface ----
                              actionButton(inputId = "go_to_read",
                                           label = "Analyze Images")
-                             
+
                              ),
              
-             mainPanel(
-               
-               imageOutput("logo")
-               
-             )
              
+             
+             # Logo Panel ----
+             mainPanel(
+               imageOutput("logo"),
+               hr(),
+               h4(uiOutput(outputId = "link"))
+             )
              ),
     
+    # Analysis interface ----
     tabPanel("Step 2", id = "analysis_tab",
              
              useShinyjs(),
@@ -106,7 +113,7 @@ ui <- shinyUI(
                     }')
    )),
    
-   ## Slider Colors
+   # Slider Colors ----
    tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #FF0000; border-top-color: #FF0000; border-bottom-color: #FF0000; border-color: #FF0000}")),
    tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #000CFF; border-top-color: #000CFF; border-bottom-color: #000CFF; border-color: #000CFF}")),
    tags$style(HTML(".js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {background: #00FF28; border-top-color: #00FF28; border-bottom-color: #00FF28; border-color: #00FF28}")),
@@ -118,13 +125,13 @@ ui <- shinyUI(
    tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
    tags$style(HTML(".js-irs-9 .irs-single, .js-irs-9 .irs-bar-edge, .js-irs-9 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
    
-   
-   ## Remove Slider Numbers
+   # Remove Slider Numbers ----
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
    
+   # Sidebar panel ----
    sidebarPanel(width = 3,
                 
-            ## Image measurable?
+            # Image measurable? ----
             radioButtons(inputId = "can_read",
                          label = "Is the image measurable?",
                          choices = c("Yes" = 0,
@@ -132,7 +139,7 @@ ui <- shinyUI(
                          selected = 0,
                          inline = TRUE),
                 
-            ## Define how many beats will be measured
+            # Number of beats ----
             radioButtons(inputId = "num_beats",
                          label = "How many beats will be measured?",
                          choices = c("1" = 1,
@@ -141,13 +148,12 @@ ui <- shinyUI(
                          selected = 3, 
                          inline = TRUE),
             
-            ## Baseline value
-            
+            # Numeric value of velocity marker ----
             numericInput(inputId = "velo_num", 
                          label = "What velocity (cm/s) is marked by the scale icon?", 
                          value = NA),
 
-            ## Slider on/off boxes
+            # Metric selection dropdown menu ----
             selectInput(inputId = "metric_select", 
                         label = "Select a Metric to Move",
                         choices = c("Baseline" = "bl_select",
@@ -159,7 +165,8 @@ ui <- shinyUI(
                                     "Peak 3" = "p3_select",
                                     "Trough 3" = "t3_select"),
                         selected = "bl_select"),
-            ## Sliders
+            
+            # Metric Sliders ----
             fluidRow(
               column(6,
                      sliderInput("bl_slider", "Baseline",
@@ -177,8 +184,7 @@ ui <- shinyUI(
                      sliderInput("p3_slider", "Peak 3",
                                  min = 1, max = 640, value = 600,
                                  ticks = FALSE)
-                     
-              ),
+                     ),
               
               column(6, 
                      
@@ -197,36 +203,35 @@ ui <- shinyUI(
                      sliderInput("t3_slider", "Trough 3",
                                  min = 1, max = 640, value = 600,
                                  ticks = FALSE)
-                     
-              )
-            ),
-            
-            
-            
-            # Horizontal line ----
+                     )
+              ),
+
+            # Line break ----
             tags$hr(),
             
+            # Image submit button ----
             actionButton(inputId = "submit", label = "Submit Image")
      ),
    
+   # Main image panel ----
    mainPanel(width = 9,
      
      column(12,
             
+            # Text showing current image ID and image progress ----
             htmlOutput("status"),
             
-            # Conditional action button to return to tab step 1 after finished
+            # Conditional buttons for download / return to input ----
             fluidRow(
-              
+            
               column(2,
-        
+       
             conditionalPanel(
               condition = "output.downloadReady",
               br(),
               downloadButton(outputId = "download_data",
                              label = "Download Data")
-              
-            )
+              )
             ),
             
             column(2,
@@ -236,13 +241,12 @@ ui <- shinyUI(
               br(),
               actionButton(inputId = "go_to_entry", 
                            label = "Upload Files")
-              
-              
-            ))),
+              ))),
             
-            # Horizontal line ----
+            # Line break ----
             tags$hr(),
             
+            # Image-related questions ----
             fluidRow(
               column(4,
                      radioButtons("dicrotic", "Is a Dicrotic Notch Present?",
@@ -269,10 +273,8 @@ ui <- shinyUI(
                      br()
               )
             ),
-            
-            
-            # Output: Data file ----
-            
+
+            # Conditional output of image / plot ----
             fluidRow(
               column(12,
                      conditionalPanel(
@@ -285,9 +287,12 @@ ui <- shinyUI(
                      )
               ),
               
+              # Conditional sliders for marker adjustment / plot zoom ----
               column(12, align = "center",
                      conditionalPanel(
                        condition = "output.fileUploaded",
+                       
+                       # Line break ----
                        hr(),
                        
                        column(4, align = "center",
@@ -312,18 +317,17 @@ ui <- shinyUI(
                                           min = 0.01, max = 2, value = 1, step = 0.01,
                                           ticks = FALSE))
                        )
+                     )
               )
+            )
      )
    )
-    )
+   )
   )
-)
-)
   
 server <- function(input, output, session) {
   
-  ## Logo output
-  
+  # Logo output ----
   output$logo <- renderImage({
     
     list(src = "DUSOM_anesthesiology.jpg",
@@ -331,7 +335,7 @@ server <- function(input, output, session) {
     
   }, deleteFile = FALSE)
   
-  # Basic Reactive Values
+  # Basic Reactive Values ----
   rv <- reactiveValues(seq = 1,
                        data = data.frame("image_id" = NA,
                                          "date_time_submit" = NA,
@@ -351,12 +355,10 @@ server <- function(input, output, session) {
                                          "rri_2" = NA,
                                          "rri_3" = NA))
   
-  ## User inputs new files
-  ## Reset data frame
-  ## Reset seq reactive value
-  
+  # User inputs new files ----
   observeEvent(input$files, {
     
+    # Reset data frame ----
     rv$data <- data.frame("image_id" = NA,
                           "date_time_submit" = NA,
                           "anesthesiologist_measuring" = NA,
@@ -378,9 +380,10 @@ server <- function(input, output, session) {
                           "rri_2" = NA,
                           "rri_3" = NA)
     
+    # Reset seq counter
     rv$seq <- 1
     
-    ## Reset structure reactive values
+    # Reset structure reactive values
     structures$bl <- img_dim()[2] - 10
     structures$velo <- img_dim()[2] - 10
     structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
@@ -393,8 +396,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Define input files
-  
+  # Define input files ----
   inFile <- reactive({
     
     if (is.null(input$files))
@@ -404,7 +406,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Calculate total number of images
+  # Calculate total number of images ----
   image_total <- reactive({
 
     if (is.null(inFile()))
@@ -413,8 +415,7 @@ server <- function(input, output, session) {
     return(nrow(inFile()))
   })
   
-  ## Grab File Name to Define Image ID
-  
+  # Grab file name ----
   file_name <- reactive({
   
     if (is.null(inFile()))
@@ -423,8 +424,7 @@ server <- function(input, output, session) {
     return(stringi::stri_extract_first(str = inFile()$name, regex = ".*(?=\\.)"))
   })
   
-  ## Create file name output for input screen
-  
+  # Create file name output for input screen ----
   output$files_uploaded <- renderText({
     
     if (is.null(inFile)){
@@ -435,8 +435,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Status Display
-  
+  # Status display output ----
   output$status <- renderText({
     
     if (is.null(inFile()))
@@ -451,7 +450,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Define reactive values for image analysis
+  # Define reactive values for image analysis ----
   structures <- reactiveValues(bl = NA,
                                velo = NA,
                                peak1 = NA,
@@ -471,7 +470,7 @@ server <- function(input, output, session) {
                                click = 50,
                                image_dim = c(NA, NA))
 
-  ## Define Current Metric
+  # Define Current Metric ----
   metric <- reactive({
 
       mets <- c("bl_select" = "Baseline",
@@ -487,7 +486,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Current metric output for toggle
+  # Current metric output for toggle ----
   
   output$current_metric <- renderText({
     
@@ -498,18 +497,16 @@ server <- function(input, output, session) {
     
   })
   
-  ## Submit button pressed
+  # Submit button pressed ----
   observeEvent(input$submit, {
     
-    ## Reset velo_num
-    
+    # Reset velo_num ----
     updateNumericInput(session,
                        inputId = "velo_num", 
                        label = "What velocity (cm/s) is marked by the scale icon?", 
                        value = NA)
     
-    ## Reset radio buttons
-    
+    # Reset radio buttons ----
     updateRadioButtons(session, inputId = "can_read",
                        label = "Is the image un-measurable?",
                        choices = c("No" = 0,
@@ -527,8 +524,7 @@ server <- function(input, output, session) {
                        inline = TRUE
                        )
     
-    ## Reset metric selection
-    
+    # Reset metric selection ----
     updateSelectInput(session,
                       inputId = "metric_select", 
                       label = "Select a Metric to Move",
@@ -543,12 +539,11 @@ server <- function(input, output, session) {
                       selected = "bl_select"
     ) 
     
-    
-    ## Update dataframe with new values pending image measurable
+    # Update dataframe with new values pending image measurable ----
     
     if (input$can_read == 0){
       
-    rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
+      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                            "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                            "anesthesiologist_measuring" = input$reader,
                            "image_unmeasurable" = input$can_read,
@@ -568,25 +563,25 @@ server <- function(input, output, session) {
                            "rri_1" = calculateRRI(structures, 1),
                            "rri_2" = calculateRRI(structures, 2),
                            "rri_3" = calculateRRI(structures, 3))
-    
-    if (input$passcode == dbMasterPassword){
       
-      db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+      if (input$passcode == dbMasterPassword){
+        
+        db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
                       port = dbPort, user = dbUser, 
                       password = dbMasterPassword)
-      
-      query <-  sprintf(
+        
+        query <-  sprintf(
         "INSERT INTO rri_reads (%s) VALUES ('%s')",
         paste(names(rv$data), collapse = ", "),
         paste(rv$data[rv$seq, ], collapse = "', '")
-      )
+        )
+        
+        dbGetQuery(db, query)
+        dbDisconnect(db)
+        
+        }
       
-      dbGetQuery(db, query)
-      dbDisconnect(db)
-      
-    }
-    
-    } else if (input$can_read == 1){
+      } else if (input$can_read == 1){
       
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                              "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
@@ -615,7 +610,6 @@ server <- function(input, output, session) {
                         port = dbPort, user = dbUser, 
                         password = dbMasterPassword)
         
-        
         query <-  sprintf(
           "INSERT INTO rri_reads (%s) VALUES ('%s')",
           paste(names(rv$data), collapse = ", "),
@@ -627,12 +621,12 @@ server <- function(input, output, session) {
         
       }
       
-    }
+      }
     
-    ## Increase seq reactive value by 1
+    # Increase seq reactive value by 1 ----
     rv$seq <- rv$seq + 1
   
-    ## Show pop-up message box
+    # Show submission modal dialog ----
     showModal(modalDialog(
       title = "Data Submitted",
       "Data for this Image Has Been Submitted. Continue by Clicking Outside this Box.",
@@ -642,10 +636,10 @@ server <- function(input, output, session) {
       size = "m"
     ))
       
-    ## Reset zoom slider
+    # Reset zoom slider ----
     updateSliderInput(session, "plot_size", val = 1)
   
-    ## Reset structure reactive values
+    # Reset structure reactive values ----
     structures$bl <- img_dim()[2] - 10
     structures$velo <- img_dim()[2] - 10
     structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
@@ -658,7 +652,7 @@ server <- function(input, output, session) {
 
   })
   
-  ## Toggle status of sliders and radiobuttons based on can_read
+  # Toggle status of sliders and radiobuttons based on can_read ---
   
   observe({
     
@@ -668,17 +662,18 @@ server <- function(input, output, session) {
     
   })
   
-  ## Toggle status of inputs
+  # Toggle allowable status of inputs ----
   observe({
     
-    ## Next metric available after image uploaded; deactivate after all are read
+    # Next metric available after image uploaded; deactivate after all are read
     toggleState(id = "next_metric", condition = all(c(!is.null(input$files), 
                                                  rv$seq <= nrow(input$files))))
-    ## Prior metric available after image uploaded; deactivate after all are read
+    
+    # Prior metric available after image uploaded; deactivate after all are read
     toggleState(id = "prior_metric", condition = all(c(!is.null(input$files), 
                                                       rv$seq <= nrow(input$files))))
     
-    ## Submit available after images uploaded; deactivate after all are read
+    # Submit available after images uploaded; deactivate after all are read
     toggleState(id = "submit", condition = all(c(!is.null(input$files), 
                                                  rv$seq <= nrow(input$files))))
     
@@ -691,14 +686,14 @@ server <- function(input, output, session) {
     
   })
   
-  # Move to analysis tab panel with button click
+  # Move to analysis tab panel with button click ---
   observeEvent(input$go_to_entry, {
     
     updateNavbarPage(session, inputId = "tabs", selected = "Step 1")
     
   })
   
-  # Move to upload tab panel with button click
+  # Move to upload tab panel with button click ----
   observeEvent(input$go_to_read, {
     
     updateNavbarPage(session, inputId = "tabs", selected = "Step 2")
@@ -706,8 +701,7 @@ server <- function(input, output, session) {
   })
   
   
-  ## User clicks next metric
-  
+  # User clicks next metric ----
   observeEvent(input$next_metric, {
 
     if (input$num_beats == 3){
@@ -986,7 +980,7 @@ server <- function(input, output, session) {
 
   })
   
-  ## User clicks prior metric
+  # User clicks prior metric ----
   
   observeEvent(input$prior_metric, {
     
@@ -1266,7 +1260,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Define data download output
+  # Define data download output ----
   output$download_data <- downloadHandler(
     filename = function() {
       paste(input$reader, "_", format(Sys.time(), "%Y_%m_%d_%H%M"), ".csv", sep = "")
@@ -1275,8 +1269,7 @@ server <- function(input, output, session) {
       write.csv(rv$data, file, row.names = FALSE)
     })
   
-  ## Define image dimensions
-  
+  # Define image dimensions ----
   img_dim <- reactive({
     
     if(is.null(inFile())){
@@ -1292,8 +1285,7 @@ server <- function(input, output, session) {
       
   })
   
-  ## Update slider max and position based on img_dim
-  
+  # Update slider max and position based on img_dim ----
   observeEvent(img_dim(), {
 
     updateSliderInput(session, "nudge", max = img_dim()[2],
@@ -1317,7 +1309,7 @@ server <- function(input, output, session) {
   
   })
   
-  ## Image generation
+  # Image generation ----
   observe({
     
     output$image <- renderPlot({
@@ -1418,7 +1410,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Select metric - switch position of nudge slider
+  # Select metric - switch position of nudge slider ----
   observeEvent(input$metric_select, {
     
     if (input$metric_select == "bl_select"){
@@ -1458,13 +1450,13 @@ server <- function(input, output, session) {
   })
   
   
-  ## User clicks on image
+  # User clicks on image ----
   observeEvent(input$click, {
     
     updateSliderInput(session, "nudge", val = input$click$y)
     
-    ## Movement of lines depends on selected radio button
-    ## Slider values are updated with click
+    # Movement of lines depends on selected radio button
+    # Slider values are updated with click
     if (input$metric_select == "bl_select"){
       
       structures$bl <- input$click$y
@@ -1517,8 +1509,8 @@ server <- function(input, output, session) {
       
   })
 
-  ## Update options for metric selection based on beats
-  ## Also update values of data to NA (removes from plot, and makes NA for data)
+  # Update options for metric selection based on beats ----
+  # Also update values of data to NA (removes from plot, and makes NA for data)
   observeEvent(input$num_beats, {
     
     if (input$num_beats == 1){
@@ -1574,8 +1566,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Set data values to NA if image is unmeasurable
-  
+  # Set data values to NA if image is unmeasurable ----
   observeEvent(input$can_read, {
     
     if (input$can_read == 1){
@@ -1589,8 +1580,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Toggle state of sliders based on number of beats and measureable image
-  
+  # Toggle state of sliders based on number of beats and measureable image ----
   observe ({
     
     toggleState("p2_slider", condition = (input$num_beats %in% c(2, 3) &
@@ -1611,9 +1601,9 @@ server <- function(input, output, session) {
     
   })
   
-  ## User moves sliders
-  ## Line moves based on slider choice
-  ## Radio button updates
+  # User moves sliders ----
+  # Line moves based on slider choice
+  # Radio button updates
   observeEvent(input$p1_slider, {
     
     structures$peaks[1] <- input$p1_slider
@@ -1767,12 +1757,11 @@ server <- function(input, output, session) {
     
   })
 
-  ## User moves marker slider
-  
+  # User moves marker nudge slider ----
   observeEvent(input$nudge, {
     
-    ## Movement of lines depends on selected radio button
-    ## Slider values are updated with click
+    ##Movement of lines depends on selected radio button
+    # Slider values are updated with click
     if (input$metric_select == "bl_select"){
       
       structures$bl <- input$nudge
@@ -1817,32 +1806,28 @@ server <- function(input, output, session) {
     
   })
   
-  ## Conditional Panel for uploaded file
-
+  # Conditional Panel for uploaded file ----
   output$fileUploaded <- reactive({
     
     return(!is.null(inFile()) & (!rv$seq > image_total()))
     
   })
   
-  ## Conditional Panel for action button when finished
-  
+  # Conditional Panel for action button when finished ----
   output$done <- reactive({
     
     return(!is.null(inFile()) & (rv$seq > image_total()))
     
   })
   
-  ## Conditional Panel for action button when no files uploaded
-  
+  # Conditional Panel for action button when no files uploaded ----
   output$no_upload <- reactive({
     
     return(is.null(inFile()))
     
   })
   
-  ## Check passcode for text output
-  
+  # Check passcode for text output ----
   pass <- reactiveValues(x = "<b><i><font color = red>Please enter a passcode.</b></i></font>")
   
   output$pass_text <- renderText(pass$x)
@@ -1856,8 +1841,7 @@ server <- function(input, output, session) {
     }
   })
   
-  ## Pull data from database to compare uploaded file IDs
-  
+  # Pull data from database to compare uploaded file IDs ----
   observeEvent(input$files, {
     
     db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
@@ -1878,6 +1862,14 @@ server <- function(input, output, session) {
                            paste(wrong, collapse = ", "),
                            "<br>Please reupload images with a valid study ",
                            "image ID.</b></i></font>"))
+      
+      showModal(modalDialog(
+        title = "Non-Numeric Image ID",
+        message,
+        easyClose = FALSE,
+        fade = TRUE,
+        size = "m"
+      ))
       
     } else if (any(as.numeric(file_name()) %in% as.numeric(dbData$image_id))){
     
@@ -1909,9 +1901,7 @@ server <- function(input, output, session) {
     
   })
   
-  
-  ## Conditional Panel for download button when read one+ images
-  
+  # Conditional Panel for download button when read one or more images ----
   output$downloadReady <- reactive({
     
     return(!is.null(inFile()) & (rv$seq > 1))
@@ -1923,9 +1913,14 @@ server <- function(input, output, session) {
   outputOptions(output, 'downloadReady', suspendWhenHidden=FALSE)
   outputOptions(output, 'no_upload', suspendWhenHidden=FALSE)
   
+  # Generate url for link to index
+  return_link <- a("Return to RRI Dashboard",
+                   href="http://ec2-54-208-135-117.compute-1.amazonaws.com:3838")
+  
+  output$link <- renderUI({return_link})
+  
 }
 
-
-# Run the application 
+# Run the application ----
 shinyApp(ui = ui, server = server)
 
