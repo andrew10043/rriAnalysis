@@ -1,37 +1,19 @@
+## Load libraries
 library(shiny)
 library(shinyjs)
 library(jpeg)
-library(googlesheets)
 library(RMySQL)
 
 ## Source global.R to obtain authentication information for MySQL
-source("/global.R")
+source("db.R")
 
-## Google sheets code -----
+## Source functions
+source("functions.R")
 
-## Prepare OAuth token and set up target sheet (only do this once)
-# shiny_token <- gs_auth() # authenticate w/ your desired Google identity here
-# saveRDS(shiny_token, "shiny_app_token.rds")
-# ss <- gs_new("1fYdh-PDPQn-7xumHxGlisSy7hSAjXWPwaxidr6ah_tw")
-
-# Identify sheet and authenticate with token
-googlesheets::gs_auth(token = "shiny_app_token.rds")
-sheet_key <- "1fYdh-PDPQn-7xumHxGlisSy7hSAjXWPwaxidr6ah_tw"
-ss <- googlesheets::gs_key(sheet_key)
-
-# Identify master passcode
-master_passcode = "test"
-
+## Formatting Parameters
 cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
           "#FF6900", "#FF00EB", "#00F7FF", "#FFFFFF",
           "#000000", "#8B888A")
-
-calculateRRI <- function(values, index) {
-  
-  return((abs(values$peaks[index] - values$bl) - abs(values$troughs[index] - values$bl)) / 
-    abs(values$peaks[index] - values$bl))
-  
-}
 
 ui <- shinyUI(
   navbarPage(
@@ -49,8 +31,8 @@ ui <- shinyUI(
              
              fluidRow(column(12,
                              
-                             h5(paste("Welcome to the renal resistive index analysis platform.
-                                Please enter your information and upload images below.", test))
+                             h5("Welcome to the renal resistive index analysis platform.
+                                Please enter your information and upload images below.")
                              
                              )
                       ),
@@ -587,9 +569,20 @@ server <- function(input, output, session) {
                            "rri_2" = calculateRRI(structures, 2),
                            "rri_3" = calculateRRI(structures, 3))
     
-    if (input$passcode == master_passcode){
+    if (input$passcode == dbMasterPassword){
       
-      gs_add_row(ss, input = as.character(rv$data[rv$seq, ]))
+      db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+                      port = dbPort, user = dbUser, 
+                      password = dbMasterPassword)
+      
+      query <-  sprintf(
+        "INSERT INTO rri_reads (%s) VALUES ('%s')",
+        paste(names(rv$data), collapse = ", "),
+        paste(rv$data[rv$seq, ], collapse = "', '")
+      )
+      
+      dbGetQuery(db, query)
+      dbDisconnect(db)
       
     }
     
@@ -616,9 +609,21 @@ server <- function(input, output, session) {
                              "rri_2" = NA,
                              "rri_3" = NA)
       
-      if (input$passcode == master_passcode){
+      if (input$passcode == dbMasterPassword){
         
-        gs_add_row(ss, input = as.character(rv$data[rv$seq, ]))
+        db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+                        port = dbPort, user = dbUser, 
+                        password = dbMasterPassword)
+        
+        
+        query <-  sprintf(
+          "INSERT INTO rri_reads (%s) VALUES ('%s')",
+          paste(names(rv$data), collapse = ", "),
+          paste(rv$data[rv$seq, ], collapse = "', '")
+        )
+        
+        dbGetQuery(db, query)
+        dbDisconnect(db)
         
       }
       
@@ -1844,9 +1849,9 @@ server <- function(input, output, session) {
 
   observeEvent(input$check_pass, {
     
-    if (input$passcode == master_passcode){
+    if (input$passcode == dbMasterPassword){
       pass$x <- "<b><i><font color = red>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
-    } else if (input$passcode != master_passcode){
+    } else if (input$passcode != dbMasterPassword){
       pass$x <- "<b><i><font color = red>Incorrect passcode.<br>Data will not be uploaded to the database.</b></i></font>"
     }
   })
@@ -1855,7 +1860,13 @@ server <- function(input, output, session) {
   
   observeEvent(input$files, {
     
-    currentData <- gs_read_csv(ss)
+    db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+                    port = dbPort, user = dbUser, 
+                    password = dbMasterPassword)
+    
+    dbData <- dbGetQuery(db, "SELECT image_id FROM rri_reads")
+    
+    dbDisconnect(db)
     
     if (any(is.na(as.numeric(file_name())))) {
       
@@ -1865,23 +1876,12 @@ server <- function(input, output, session) {
       message = HTML(paste("<b><i><font color = red>The following uploaded ", 
                            "images are named improperly: ", 
                            paste(wrong, collapse = ", "),
-                           "<br>Please rename the images with a valid study ",
-                           "image ID below.</b></i></font>"))
+                           "<br>Please reupload images with a valid study ",
+                           "image ID.</b></i></font>"))
       
-      showModal(modalDialog(
-        title = "Non-Numeric Image ID",
-        message,
-        easyClose = FALSE,
-        fade = TRUE,
-        size = "m",
-        fluidRow(column(4,
-                        br(),
-                        textInput(inputId = "new_name", "Valid Image IDs")))
-      ))
-      
-    } else if (any(as.numeric(file_name()) %in% as.numeric(currentData$image_id))){
+    } else if (any(as.numeric(file_name()) %in% as.numeric(dbData$image_id))){
     
-      dups <- file_name()[as.numeric(file_name()) %in% as.numeric(currentData$image_id)]
+      dups <- file_name()[as.numeric(file_name()) %in% as.numeric(dbData$image_id)]
 
       if (length(dups) > 1){
         title <- "Possible Duplicate Images"
@@ -1922,7 +1922,6 @@ server <- function(input, output, session) {
   outputOptions(output, 'done', suspendWhenHidden=FALSE)
   outputOptions(output, 'downloadReady', suspendWhenHidden=FALSE)
   outputOptions(output, 'no_upload', suspendWhenHidden=FALSE)
-  
   
 }
 
