@@ -16,7 +16,7 @@ cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
           "#000000", "#8B888A")
 
 ui <- shinyUI(
-  
+
   # Initialize navbar page ---- 
   navbarPage(
     "Renal Resistive Index Analysis", id = "tabs",
@@ -324,7 +324,7 @@ ui <- shinyUI(
    )
    )
   )
-  
+
 server <- function(input, output, session) {
   
   # Logo output ----
@@ -1918,6 +1918,7 @@ server <- function(input, output, session) {
                    href="http://ec2-54-208-135-117.compute-1.amazonaws.com:3838")
   
   output$link <- renderUI({return_link})
+  output$link_2 <- renderUI({return_link})
   
 }
 
