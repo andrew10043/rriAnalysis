@@ -500,6 +500,68 @@ server <- function(input, output, session) {
   # Submit button pressed ----
   observeEvent(input$submit, {
     
+    # Prevent submission process if data is not filled out properly ----
+    if (is.na(input$velo_num)){
+      showModal(modalDialog(
+        title = "Velocity Marker not Labeled",
+        "You have not entered a value for the velocity marker.
+        Please update and resubmit this image",
+        easyClose = FALSE,
+        footer = NULL,
+        fade = TRUE,
+        size = "m"
+      ))
+    }
+    
+    if (structures$bl == img_dim()[2] - 10){
+      showModal(modalDialog(
+        title = "Baseline Not Marked",
+        "You have not marked the baseline. Please update and resubmit this image",
+        easyClose = FALSE,
+        footer = NULL,
+        fade = TRUE,
+        size = "m"
+      ))
+    }
+    
+    if (structures$velo == img_dim()[2] - 10){
+      showModal(modalDialog(
+        title = "Velocity not Marked",
+        "You have not marked the velocity bar. Please update and resubmit this image",
+        easyClose = FALSE,
+        footer = NULL,
+        fade = TRUE,
+        size = "m"
+      ))
+    }
+    
+    if (any(structures$peaks == 
+            c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30))){
+      showModal(modalDialog(
+        title = "One or More Peaks not Marked",
+        "You have not marked one or more peaks. If necessary, change the 
+        number of troughs to be measured. Please update and resubmit.",
+        easyClose = FALSE,
+        footer = NULL,
+        fade = TRUE,
+        size = "m"
+      ))
+    }
+    
+    if (any(structures$troughs == rep(img_dim()[2] - 30, 3))){
+      showModal(modalDialog(
+        title = "One or More Troughs not Marked",
+        "You have not marked one or more troughs. If necessary, change the 
+        number of troughs to be measured. Please update and resubmit.",
+        easyClose = FALSE,
+        footer = NULL,
+        fade = TRUE,
+        size = "m"
+      ))
+    }
+    
+    else {
+      
     # Reset velo_num ----
     updateNumericInput(session,
                        inputId = "velo_num", 
@@ -650,6 +712,7 @@ server <- function(input, output, session) {
     structures$troughs_x <- c(125, 200, 275)
     structures$click <- 50
 
+    }
   })
   
   # Toggle status of sliders and radiobuttons based on can_read ---
