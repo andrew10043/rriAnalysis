@@ -90,9 +90,7 @@ ui <- shinyUI(
                                           label = "Analyze Images")
 
                              ),
-             
-             
-             
+
              # Logo Panel ----
              mainPanel(
                imageOutput("logo"),
@@ -104,6 +102,7 @@ ui <- shinyUI(
     # Analysis interface ----
     tabPanel("Step 2", id = "analysis_tab",
              
+             # Enable javascript ----
              useShinyjs(),
              
              tags$head(tags$style(
@@ -114,16 +113,8 @@ ui <- shinyUI(
    )),
    
    # Slider Colors ----
-   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #FF0000; border-top-color: #FF0000; border-bottom-color: #FF0000; border-color: #FF0000}")),
-   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #000CFF; border-top-color: #000CFF; border-bottom-color: #000CFF; border-color: #000CFF}")),
-   tags$style(HTML(".js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {background: #00FF28; border-top-color: #00FF28; border-bottom-color: #00FF28; border-color: #00FF28}")),
-   tags$style(HTML(".js-irs-3 .irs-single, .js-irs-3 .irs-bar-edge, .js-irs-3 .irs-bar {background: #F7FF00; border-top-color: #F7FF00; border-bottom-color: #F7FF00; border-color: #F7FF00}")),
-   tags$style(HTML(".js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {background: #FF6900; border-top-color: #FF6900; border-bottom-color: #FF6900; border-color: #FF6900}")),
-   tags$style(HTML(".js-irs-5 .irs-single, .js-irs-5 .irs-bar-edge, .js-irs-5 .irs-bar {background: #FF00EB; border-top-color: yelow; border-bottom-color: #FF00EB; border-color: #FF00EB}")),
-   tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: #00F7FF; border-top-color: #00F7FF; border-bottom-color: #00F7FF; border-color: #00F7FF}")),
-   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: #FFFFFF; border-top-color: #FFFFFF; border-bottom-color: #FFFFFF; border-color: #FFFFFF}")),
-   tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
-   tags$style(HTML(".js-irs-9 .irs-single, .js-irs-9 .irs-bar-edge, .js-irs-9 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
+   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
+   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
    
    # Remove Slider Numbers ----
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
@@ -152,6 +143,43 @@ ui <- shinyUI(
             numericInput(inputId = "velo_num", 
                          label = "What velocity (cm/s) is marked by the scale icon?", 
                          value = NA),
+            
+            # Heart rate ----
+            
+            numericInput(inputId = "heart_rate", 
+                         label = "What is the heart rate?", 
+                         value = NA),
+            
+            # Strip speed ----
+            
+            radioButtons(inputId = "strip_speed",
+                         label = "What is the speed (mm/s)?",
+                         choices = c("50" = 50,
+                                     "75" = 75,
+                                     "100" = 100,
+                                     "125" = 125),
+                         selected = character(0), 
+                         inline = TRUE),
+            
+            # Rhythym ----
+            
+            radioButtons(inputId = "rhythm",
+                         label = "What is the rhythm on EKG?",
+                         choices = c("Regular" = 1,
+                                     "Irregular" = 2,
+                                     "Indeterminate" = 3),
+                         selected = character(0), 
+                         inline = TRUE),
+            
+            # Paced ----
+            
+            radioButtons(inputId = "paced",
+                         label = "Is the rhythm paced?",
+                         choices = c("No" = 2,
+                                     "Yes" = 1,
+                                     "Indeterminate" = 3),
+                         selected = character(0), 
+                         inline = TRUE),
 
             # Metric selection dropdown menu ----
             selectInput(inputId = "metric_select", 
@@ -165,46 +193,6 @@ ui <- shinyUI(
                                     "Peak 3" = "p3_select",
                                     "Trough 3" = "t3_select"),
                         selected = "bl_select"),
-            
-            # Metric Sliders ----
-            fluidRow(
-              column(6,
-                     sliderInput("bl_slider", "Baseline",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE),
-                     
-                     sliderInput("p1_slider", "Peak 1",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE),
-                     
-                     sliderInput("p2_slider", "Peak 2",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE),
-                     
-                     sliderInput("p3_slider", "Peak 3",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE)
-                     ),
-              
-              column(6, 
-                     
-                     sliderInput("velo_slider", "Scale",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE),
-                     
-                     sliderInput("t1_slider", "Trough 1",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE),
-                     
-                     sliderInput("t2_slider", "Trough 2",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE),
-                     
-                     sliderInput("t3_slider", "Trough 3",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE)
-                     )
-              ),
 
             # Line break ----
             tags$hr(),
@@ -252,7 +240,7 @@ ui <- shinyUI(
                      radioButtons("dicrotic", "Is a Dicrotic Notch Present?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
-                                  selected = 0,
+                                  selected = character(),
                                   inline = TRUE),
                      br()
               ),
@@ -260,7 +248,7 @@ ui <- shinyUI(
                      radioButtons("rounded", "Are the Envelopes Rounded?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
-                                  selected = 0,
+                                  selected = character(0),
                                   inline = TRUE),
                      br()
               ),
@@ -268,7 +256,7 @@ ui <- shinyUI(
                      radioButtons("flat_diastole", "Is a Diastole Relatively Flat?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
-                                  selected = 1,
+                                  selected = character(0),
                                   inline = TRUE),
                      br()
               )
@@ -1353,23 +1341,7 @@ server <- function(input, output, session) {
 
     updateSliderInput(session, "nudge", max = img_dim()[2],
                       value = img_dim()[2] - 10)
-    updateSliderInput(session, "velo_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 10)
-    updateSliderInput(session, "p1_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 10)
-    updateSliderInput(session, "p2_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 10)
-    updateSliderInput(session, "p3_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 30)
-    updateSliderInput(session, "t1_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 30)
-    updateSliderInput(session, "t2_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 30)
-    updateSliderInput(session, "t3_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 30)
-    updateSliderInput(session, "bl_slider", max = img_dim()[2],
-                      value = img_dim()[2] - 10)
-  
+    
   })
   
   # Image generation ----
@@ -1478,35 +1450,35 @@ server <- function(input, output, session) {
     
     if (input$metric_select == "bl_select"){
 
-      updateSliderInput(session, "nudge", val = input$bl_slider)
+      updateSliderInput(session, "nudge", val = structures$bl)
       
     } else if (input$metric_select == "velo_select"){
       
-      updateSliderInput(session, "nudge", val = input$velo_slider)
+      updateSliderInput(session, "nudge", val = structures$velo)
       
     } else if (input$metric_select == "p1_select"){
       
-      updateSliderInput(session, "nudge", val = input$p1_slider)
+      updateSliderInput(session, "nudge", val = structures$peaks[1])
       
     } else if (input$metric_select == "p2_select"){
       
-      updateSliderInput(session, "nudge", val = input$p2_slider)
+      updateSliderInput(session, "nudge", val = structures$peaks[2])
       
     } else if (input$metric_select == "p3_select"){
       
-      updateSliderInput(session, "nudge", val = input$p3_slider)
+      updateSliderInput(session, "nudge", val = structures$peaks[3])
       
     } else if (input$metric_select == "t1_select"){
       
-      updateSliderInput(session, "nudge", val = input$t1_slider)
+      updateSliderInput(session, "nudge", val = structures$troughs[1])
       
     } else if (input$metric_select == "t2_select"){
       
-      updateSliderInput(session, "nudge", val = input$t2_slider)
+      updateSliderInput(session, "nudge", val = structures$troughs[2])
       
     } else if (input$metric_select == "t3_select"){
       
-      updateSliderInput(session, "nudge", val = input$t3_slider)  
+      updateSliderInput(session, "nudge", val = structures$troughs[3])  
       
     }
     
@@ -1524,50 +1496,42 @@ server <- function(input, output, session) {
       
       structures$bl <- input$click$y
       structures$bl_x <- input$click$x
-      updateSliderInput(session, "bl_slider", val = input$click$y)
 
     } else if (input$metric_select == "velo_select"){
       
       structures$velo <- input$click$y
       structures$velo_x <- input$click$x
-      updateSliderInput(session, "velo_slider", val = input$click$y)
     
     } else if (input$metric_select == "p1_select"){
       
       structures$peaks[1] <- input$click$y
       structures$peaks_x[1] <- input$click$x
-      updateSliderInput(session, "p1_slider", val = input$click$y)
         
     } else if (input$metric_select == "p2_select"){
       
       structures$peaks[2] <- input$click$y
       structures$peaks_x[2] <- input$click$x
-      updateSliderInput(session, "p2_slider", val = input$click$y)
       
     } else if (input$metric_select == "p3_select"){
       
       structures$peaks[3] <- input$click$y
       structures$peaks_x[3] <- input$click$x
-      updateSliderInput(session, "p3_slider", val = input$click$y)
-      
+
     } else if (input$metric_select == "t1_select"){
       
       structures$troughs[1] <- input$click$y
       structures$troughs_x[1] <- input$click$x
-      updateSliderInput(session, "t1_slider", val = input$click$y)
-      
+
     } else if (input$metric_select == "t2_select"){
       
       structures$troughs[2] <- input$click$y
       structures$troughs_x[2] <- input$click$x
-      updateSliderInput(session, "t2_slider", val = input$click$y)
-      
+
     } else if (input$metric_select == "t3_select"){
       
       structures$troughs[3] <- input$click$y
       structures$troughs_x[3] <- input$click$x
-      updateSliderInput(session, "t3_slider", val = input$click$y)  
-      
+
     }
       
   })
@@ -1642,183 +1606,6 @@ server <- function(input, output, session) {
     }
     
   })
-  
-  # Toggle state of sliders based on number of beats and measureable image ----
-  observe ({
-    
-    toggleState("p2_slider", condition = (input$num_beats %in% c(2, 3) &
-                                          input$can_read == 0))
-    
-    toggleState("t2_slider", condition = (input$num_beats %in% c(2, 3) & 
-                                          input$can_read == 0))
-    
-    toggleState("p3_slider", condition = (input$num_beats == 3 & 
-                                          input$can_read == 0))
-    toggleState("t3_slider", condition = (input$num_beats == 3 & 
-                                          input$can_read == 0))
-    
-    toggleState("bl_slider", condition = input$can_read == 0)
-    toggleState("velo_slider", condition = input$can_read == 0)
-    toggleState("p1_slider", condition = input$can_read == 0)
-    toggleState("t1_slider", condition = input$can_read == 0)
-    
-  })
-  
-  # User moves sliders ----
-  # Line moves based on slider choice
-  # Radio button updates
-  observeEvent(input$p1_slider, {
-    
-    structures$peaks[1] <- input$p1_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "p1_select"
-    )
-    
-  })
-  
-  observeEvent(input$p2_slider, {
-    
-    structures$peaks[2] <- input$p2_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "p2_select"
-    )
-    
-  })
-  
-  observeEvent(input$p3_slider, {
-    
-    structures$peaks[3] <- input$p3_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "p3_select"
-    )
-    
-  })
-  
-  
-  observeEvent(input$t1_slider, {
-    
-    structures$troughs[1] <- input$t1_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "t1_select"
-    )
-    
-  })
-  
-  observeEvent(input$t2_slider, {
-    
-    structures$troughs[2] <- input$t2_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "t2_select"
-    )
-    
-  })
-  
-  observeEvent(input$t3_slider, {
-    
-    structures$troughs[3] <- input$t3_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "t3_select"
-    )
-    
-  })
-  
-  observeEvent(input$velo_slider, {
-    
-    structures$velo <- input$velo_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "velo_select"
-    )
-    
-  })
-  
-  observeEvent(input$bl_slider, {
-    
-    structures$bl <- input$bl_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "bl_select"
-    )
-    
-  })
 
   # User moves marker nudge slider ----
   observeEvent(input$nudge, {
@@ -1828,42 +1615,34 @@ server <- function(input, output, session) {
     if (input$metric_select == "bl_select"){
       
       structures$bl <- input$nudge
-      updateSliderInput(session, "bl_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "velo_select"){
       
       structures$velo <- input$nudge
-      updateSliderInput(session, "velo_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "p1_select"){
       
       structures$peaks[1] <- input$nudge
-      updateSliderInput(session, "p1_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "p2_select"){
       
       structures$peaks[2] <- input$nudge
-      updateSliderInput(session, "p2_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "p3_select"){
       
       structures$peaks[3] <- input$nudge
-      updateSliderInput(session, "p3_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "t1_select"){
       
       structures$troughs[1] <- input$nudge
-      updateSliderInput(session, "t1_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "t2_select"){
       
       structures$troughs[2] <- input$nudge
-      updateSliderInput(session, "t2_slider", val = input$nudge)
-      
+
     } else if (input$metric_select == "t3_select"){
       
       structures$troughs[3] <- input$nudge
-      updateSliderInput(session, "t3_slider", val = input$nudge) 
       
     }
     
