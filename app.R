@@ -145,13 +145,11 @@ ui <- shinyUI(
                          value = NA),
             
             # Heart rate ----
-            
             numericInput(inputId = "heart_rate", 
                          label = "What is the heart rate?", 
                          value = NA),
             
             # Strip speed ----
-            
             radioButtons(inputId = "strip_speed",
                          label = "What is the speed (mm/s)?",
                          choices = c("50" = 50,
@@ -161,26 +159,7 @@ ui <- shinyUI(
                          selected = character(0), 
                          inline = TRUE),
             
-            # Rhythym ----
-            
-            radioButtons(inputId = "rhythm",
-                         label = "What is the rhythm on EKG?",
-                         choices = c("Regular" = 1,
-                                     "Irregular" = 2,
-                                     "Indeterminate" = 3),
-                         selected = character(0), 
-                         inline = TRUE),
-            
-            # Paced ----
-            
-            radioButtons(inputId = "paced",
-                         label = "Is the rhythm paced?",
-                         choices = c("No" = 2,
-                                     "Yes" = 1,
-                                     "Indeterminate" = 3),
-                         selected = character(0), 
-                         inline = TRUE),
-
+        
             # Metric selection dropdown menu ----
             selectInput(inputId = "metric_select", 
                         label = "Select a Metric to Move",
@@ -207,61 +186,92 @@ ui <- shinyUI(
      column(12,
             
             # Text showing current image ID and image progress ----
-            htmlOutput("status"),
-            
+            fluidRow(
+              column(4,
+                     htmlOutput("status")
+                     )
+            ),
+
             # Conditional buttons for download / return to input ----
             fluidRow(
             
               column(2,
-       
-            conditionalPanel(
-              condition = "output.downloadReady",
-              br(),
-              downloadButton(outputId = "download_data",
-                             label = "Download Data")
+                     offset = 0, 
+                     br(),
+                     actionButton(inputId = "go_to_entry", 
+                                  label = "Upload Files")
+                     ),
+              
+              column(2,
+                     offset = 0,
+                     br(),
+                     downloadButton(outputId = "download_data",
+                                    label = "Download Data")
               )
             ),
-            
-            column(2,
-            conditionalPanel(
-              condition = "output.done || output.no_upload",
-              offset = 0, 
-              br(),
-              actionButton(inputId = "go_to_entry", 
-                           label = "Upload Files")
-              ))),
             
             # Line break ----
             tags$hr(),
             
             # Image-related questions ----
             fluidRow(
-              column(4,
-                     radioButtons("dicrotic", "Is a Dicrotic Notch Present?",
+              column(2,
+                     align = "center",
+                     radioButtons("dicrotic", "Dicrotic Notch Present?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
                                   selected = character(),
                                   inline = TRUE),
                      br()
               ),
-              column(4,
-                     radioButtons("rounded", "Are the Envelopes Rounded?",
+              column(2,
+                     align = "center",
+                     radioButtons("rounded", "Envelopes Rounded?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
                                   selected = character(0),
                                   inline = TRUE),
                      br()
               ),
-              column(4,
-                     radioButtons("flat_diastole", "Is a Diastole Relatively Flat?",
+              column(2,
+                     align = "center",
+                     radioButtons("flat_diastole", "Diastole Relatively Flat?",
                                   choices = c('No' = 0,
                                               'Yes' = 1),
                                   selected = character(0),
                                   inline = TRUE),
                      br()
+              ),
+              
+              # Rhythym ----
+              
+              column(3,
+                     align = "center",
+                     radioButtons(inputId = "rhythm",
+                                  label = "Regular Rhythm?",
+                                  choices = c("Yes" = 1,
+                                              "No" = 2,
+                                              "Unclear" = 3),
+                                  selected = character(0), 
+                                  inline = TRUE),
+                     br()
+              ),
+              
+              
+              column(3,
+                     align = "center",
+
+                     radioButtons(inputId = "paced",
+                                  label = "Paced Rhythm?",
+                                  choices = c("Yes" = 1,
+                                              "No" = 2,
+                                              "Unclear" = 3),
+                                  selected = character(0), 
+                                  inline = TRUE),
+                     br()
               )
             ),
-
+            
             # Conditional output of image / plot ----
             fluidRow(
               column(12,
@@ -488,73 +498,46 @@ server <- function(input, output, session) {
   # Submit button pressed ----
   observeEvent(input$submit, {
     
+    errorMessasges <- c("Numeric Velocity not Identified",
+                        "Baseline Not Marked",
+                        "Velocity Not Marked",
+                        "One or More Peaks Not Marked",
+                        "One or More Troughs Not Marked"
+                        )
+    
+    errors <- c(identical(input$velo_num, 0),
+                identical(structures$bl, img_dim()[2] - 10),
+                identical(structures$velo, img_dim()[2] - 10),
+                identical(structures$peaks[1], img_dim()[2] - 10) |
+                  identical(structures$peaks[2], img_dim()[2] - 10) |
+                  identical(structures$peaks[3], img_dim()[2] - 30),
+                identical(structures$troughs[1], img_dim()[2] - 30) |
+                  identical(structures$troughs[2], img_dim()[2] - 30) |
+                  identical(structures$troughs[3], img_dim()[2] - 30)
+                )
+    
+    errorDisplay <- paste(errorMessages[errors], collapse = "/n")
+    
     # Prevent submission process if data is not filled out properly ----
-    if (is.na(input$velo_num)){
+    if (length(errorMessages[errors]) != 0){
       showModal(modalDialog(
-        title = "Velocity Marker not Labeled",
-        "You have not entered a value for the velocity marker.
-        Please update and resubmit this image",
-        easyClose = FALSE,
+        h5("Your submission has the following errors:/n"),
+        HTML(errorDisplay),
+        title = "Invalid Submission",
+        easyClose = TRUE,
         footer = NULL,
         fade = TRUE,
         size = "m"
       ))
     }
-    
-    if (structures$bl == img_dim()[2] - 10){
-      showModal(modalDialog(
-        title = "Baseline Not Marked",
-        "You have not marked the baseline. Please update and resubmit this image",
-        easyClose = FALSE,
-        footer = NULL,
-        fade = TRUE,
-        size = "m"
-      ))
-    }
-    
-    if (structures$velo == img_dim()[2] - 10){
-      showModal(modalDialog(
-        title = "Velocity not Marked",
-        "You have not marked the velocity bar. Please update and resubmit this image",
-        easyClose = FALSE,
-        footer = NULL,
-        fade = TRUE,
-        size = "m"
-      ))
-    }
-    
-    if (any(structures$peaks == 
-            c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30))){
-      showModal(modalDialog(
-        title = "One or More Peaks not Marked",
-        "You have not marked one or more peaks. If necessary, change the 
-        number of troughs to be measured. Please update and resubmit.",
-        easyClose = FALSE,
-        footer = NULL,
-        fade = TRUE,
-        size = "m"
-      ))
-    }
-    
-    if (any(structures$troughs == rep(img_dim()[2] - 30, 3))){
-      showModal(modalDialog(
-        title = "One or More Troughs not Marked",
-        "You have not marked one or more troughs. If necessary, change the 
-        number of troughs to be measured. Please update and resubmit.",
-        easyClose = FALSE,
-        footer = NULL,
-        fade = TRUE,
-        size = "m"
-      ))
-    }
-    
+
     else {
       
     # Reset velo_num ----
     updateNumericInput(session,
                        inputId = "velo_num", 
                        label = "What velocity (cm/s) is marked by the scale icon?", 
-                       value = NA)
+                       value = 0)
     
     # Reset radio buttons ----
     updateRadioButtons(session, inputId = "can_read",
@@ -588,59 +571,18 @@ server <- function(input, output, session) {
                                   "Trough 3" = "t3_select"),
                       selected = "bl_select"
     ) 
-    
-    # Update dataframe with new values pending image measurable ----
-    
-    if (input$can_read == 0){
-      
-      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
-                           "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
-                           "anesthesiologist_measuring" = input$reader,
-                           "image_unmeasurable" = input$can_read,
-                           "num_beats" = input$num_beats,
-                           "dicrotic_notch" = input$dicrotic,
-                           "rounded_envelope" = input$rounded,
-                           "flat_diastole" = input$flat_diastole,
-                           "baseline" = structures$bl,
-                           "scale" = structures$velo,
-                           "velo_num" = input$velo_num,
-                           "peak_1" = structures$peaks[1],
-                           "peak_2" = structures$peaks[2],
-                           "peak_3" = structures$peaks[3],
-                           "trough_1" = structures$troughs[1],
-                           "trough_2" = structures$troughs[2],
-                           "trough_3" = structures$troughs[3],
-                           "rri_1" = calculateRRI(structures, 1),
-                           "rri_2" = calculateRRI(structures, 2),
-                           "rri_3" = calculateRRI(structures, 3))
-      
-      if (input$passcode == dbMasterPassword){
-        
-        db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
-                      port = dbPort, user = dbUser, 
-                      password = dbMasterPassword)
-        
-        query <-  sprintf(
-        "INSERT INTO rri_reads (%s) VALUES ('%s')",
-        paste(names(rv$data), collapse = ", "),
-        paste(rv$data[rv$seq, ], collapse = "', '")
-        )
-        
-        dbGetQuery(db, query)
-        dbDisconnect(db)
-        
-        }
-      
-      } else if (input$can_read == 1){
+
+    # Update dataframe with new values ----
+    if (input$can_read == 1){
       
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                              "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                              "anesthesiologist_measuring" = input$reader,
                              "image_unmeasurable" = input$can_read,
                              "num_beats" = input$num_beats,
-                             "dicrotic_notch" = NA,
-                             "rounded_envelope" = NA,
-                             "flat_diastole" = NA,
+                             "dicrotic_notch" = input$dicrotic,
+                             "rounded_envelope" = input$rounded,
+                             "flat_diastole" = input$flat_diastole,
                              "baseline" = structures$bl,
                              "scale" = structures$velo,
                              "velo_num" = input$velo_num,
@@ -650,28 +592,52 @@ server <- function(input, output, session) {
                              "trough_1" = structures$troughs[1],
                              "trough_2" = structures$troughs[2],
                              "trough_3" = structures$troughs[3],
+                             "rri_1" = calculateRRI(structures, 1),
+                             "rri_2" = calculateRRI(structures, 2),
+                             "rri_3" = calculateRRI(structures, 3))
+    }
+    
+    else if (input$can_read == 0){
+      
+      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
+                             "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
+                             "anesthesiologist_measuring" = input$reader,
+                             "image_unmeasurable" = input$can_read,
+                             "num_beats" = NA,
+                             "dicrotic_notch" = NA,
+                             "rounded_envelope" = NA,
+                             "flat_diastole" = NA,
+                             "baseline" = structures$bl,
+                             "scale" = structures$velo,
+                             "velo_num" = NA,
+                             "peak_1" = structures$peaks[1],
+                             "peak_2" = structures$peaks[2],
+                             "peak_3" = structures$peaks[3],
+                             "trough_1" = structures$troughs[1],
+                             "trough_2" = structures$troughs[2],
+                             "trough_3" = structures$troughs[3],
                              "rri_1" = NA,
                              "rri_2" = NA,
                              "rri_3" = NA)
+    }
+    
+    
+    if (input$passcode == dbMasterPassword){
       
-      if (input$passcode == dbMasterPassword){
-        
-        db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
-                        port = dbPort, user = dbUser, 
-                        password = dbMasterPassword)
-        
-        query <-  sprintf(
-          "INSERT INTO rri_reads (%s) VALUES ('%s')",
-          paste(names(rv$data), collapse = ", "),
-          paste(rv$data[rv$seq, ], collapse = "', '")
+      db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+                      port = dbPort, user = dbUser, 
+                      password = dbMasterPassword)
+      
+      query <-  sprintf(
+        "INSERT INTO rri_reads (%s) VALUES ('%s')",
+        paste(names(rv$data), collapse = ", "),
+        paste(rv$data[rv$seq, ], collapse = "', '")
         )
-        
-        dbGetQuery(db, query)
-        dbDisconnect(db)
-        
-      }
       
-      }
+      dbGetQuery(db, query)
+      dbDisconnect(db)
+      
+    }
     
     # Increase seq reactive value by 1 ----
     rv$seq <- rv$seq + 1
@@ -708,8 +674,15 @@ server <- function(input, output, session) {
   observe({
     
     toggleState(id = "num_beats", condition = input$can_read == 0)
-    
     toggleState(id = "metric_select", condition = input$can_read == 0)
+    toggleState(id = "velo_num", condition = input$can_read == 0)
+    toggleState(id = "heart_rate", condition = input$can_read == 0)
+    toggleState(id = "strip_speed", condition = input$can_read == 0)
+    toggleState(id = "dicrotic", condition = input$can_read == 0)
+    toggleState(id = "rhythm", condition = input$can_read == 0)
+    toggleState(id = "paced", condition = input$can_read == 0)
+    toggleState(id = "flat_diastole", condition = input$can_read == 0)
+    toggleState(id = "rounded", condition = input$can_read == 0)
     
   })
   
@@ -734,6 +707,10 @@ server <- function(input, output, session) {
     
     ## Analyze Image Button available after files uploaded
     toggleState(id = "go_to_read", condition = !is.null(inFile()))
+    
+    ## Upload images button available only if no files uploaded or done
+    toggleState(id = "go_to_entry", condition = (is.null(inFile()) |
+                                                 rv$seq > nrow(input$files)))
     
   })
   
@@ -1602,6 +1579,27 @@ server <- function(input, output, session) {
       structures$velo <- NA
       structures$peaks <- rep(NA, 3)
       structures$troughs <- rep(NA, 3)
+      
+      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
+                             "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
+                             "anesthesiologist_measuring" = input$reader,
+                             "image_unmeasurable" = input$can_read,
+                             "num_beats" = NA,
+                             "dicrotic_notch" = NA,
+                             "rounded_envelope" = NA,
+                             "flat_diastole" = NA,
+                             "baseline" = structures$bl,
+                             "scale" = structures$velo,
+                             "velo_num" = input$velo_num,
+                             "peak_1" = structures$peaks[1],
+                             "peak_2" = structures$peaks[2],
+                             "peak_3" = structures$peaks[3],
+                             "trough_1" = structures$troughs[1],
+                             "trough_2" = structures$troughs[2],
+                             "trough_3" = structures$troughs[3],
+                             "rri_1" = NA,
+                             "rri_2" = NA,
+                             "rri_3" = NA)
       
     }
     
