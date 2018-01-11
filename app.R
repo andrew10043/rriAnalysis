@@ -23,14 +23,7 @@ ui <- shinyUI(
     
     # File upload interface ----
     tabPanel("Step 1",
-             tags$head(tags$style(
-               HTML('body, label, input, button, select {
-                    font-family: "Avenir";
-                    font-size:10px;
-                    }')
-               )
-               ),
-             
+  
              # Entrance Message ----
              fluidRow(column(12,
                              h5("Welcome to the renal resistive index analysis 
@@ -110,56 +103,117 @@ ui <- shinyUI(
                     font-family: "Avenir";
                     font-size:10px;
                     }')
-   )),
-   
+               
+               )),
+
    # Slider Colors ----
-   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
-   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
+   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #FF0000; border-top-color: #FF0000; border-bottom-color: #FF0000; border-color: #FF0000}")),
+   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #FF6900; border-top-color: #FF6900; border-bottom-color: #FF6900; border-color: #FF6900}")),
+   tags$style(HTML(".js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {background: #000CFF; border-top-color: #000CFF; border-bottom-color: #000CFF; border-color: #000CFF}")),
+   tags$style(HTML(".js-irs-3 .irs-single, .js-irs-3 .irs-bar-edge, .js-irs-3 .irs-bar {background: #FF00EB; border-top-color: #FF00EB; border-bottom-color: #FF00EB; border-color: #FF00EB}")),
+   tags$style(HTML(".js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {background: #00FF28; border-top-color: #00FF28; border-bottom-color: #00FF28; border-color: #00FF28}")),
+   tags$style(HTML(".js-irs-5 .irs-single, .js-irs-5 .irs-bar-edge, .js-irs-5 .irs-bar {background: #00F7FF; border-top-color: #00F7FF; border-bottom-color: #00F7FF; border-color: #00F7FF}")),
+   tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: #F7FF00; border-top-color: #F7FF00; border-bottom-color: #F7FF00; border-color: #F7FF00}")),
+   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: #FFFFFF; border-top-color: #FFFFFF; border-bottom-color: #FFFFFF; border-color: #FFFFFF}")),
+   tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
+   tags$style(HTML(".js-irs-9 .irs-single, .js-irs-9 .irs-bar-edge, .js-irs-9 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
    
    # Remove Slider Numbers ----
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
    
    # Sidebar panel ----
-   sidebarPanel(width = 3,
+   sidebarPanel(width = 4,
                 
             # Image measurable? ----
-            radioButtons(inputId = "can_read",
+            fluidRow(
+              column(5,
+                     radioButtons(inputId = "cant_read",
                          label = "Is the image measurable?",
                          choices = c("Yes" = 0,
                                      "No" = 1),
                          selected = 0,
-                         inline = TRUE),
-                
-            # Number of beats ----
-            radioButtons(inputId = "num_beats",
+                         inline = TRUE)
+                     ),
+              column(7,
+                     # Number of beats ----
+                     radioButtons(inputId = "num_beats",
                          label = "How many beats will be measured?",
                          choices = c("1" = 1,
                                      "2" = 2,
                                      "3" = 3),
                          selected = 3, 
-                         inline = TRUE),
+                         inline = TRUE)
+                     )
+              ),
+              
+              
+            fluidRow(
+              column(5,
+                     # Heart rate ----
+                     numericInput(inputId = "heart_rate", 
+                                  label = "What is the heart rate?", 
+                                  value = 0)
+                     ),
+              
+              column(7,
+                     # Numeric value of velocity marker ----
+                     numericInput(inputId = "velo_num", 
+                                  label = "What velocity is marked on the scale?", 
+                                  value = 0)
+                     )
+            ),
+
+            # Metric Sliders ----
+            fluidRow(
+              column(5,
+                     radioButtons("flat_diastole", "Diastole Flat?",
+                                  choices = c('No' = 0,
+                                              'Yes' = 1),
+                                  selected = character(0),
+                                  inline = TRUE),
+                     
+                     radioButtons("dicrotic", "Dicrotic Notch?",
+                                  choices = c('No' = 0,
+                                              'Yes' = 1),
+                                  selected = character(),
+                                  inline = TRUE),
+                     
+                     radioButtons("rounded", "Envelopes Rounded?",
+                                  choices = c('No' = 0,
+                                              'Yes' = 1),
+                                  selected = character(0),
+                                  inline = TRUE)
+              ),
+              
+              column(7, 
+                     radioButtons(inputId = "strip_speed",
+                                  label = "What is the speed (mm/s)?",
+                                  choices = c("50" = 50,
+                                              "75" = 75,
+                                              "100" = 100,
+                                              "125" = 125),
+                                  selected = character(0), 
+                                  inline = TRUE),
+                     
+                     radioButtons(inputId = "paced",
+                                  label = "Paced Rhythm?",
+                                  choices = c("Yes" = 1,
+                                              "No" = 2,
+                                              "Unclear" = 3),
+                                  selected = character(0), 
+                                  inline = TRUE),
+                     
+                     radioButtons(inputId = "rhythm",
+                                  label = "Regular Rhythm?",
+                                  choices = c("Yes" = 1,
+                                              "No" = 2,
+                                              "Unclear" = 3),
+                                  selected = character(0), 
+                                  inline = TRUE)
+              )
+              
+            ),
             
-            # Numeric value of velocity marker ----
-            numericInput(inputId = "velo_num", 
-                         label = "What velocity (cm/s) is marked by the scale icon?", 
-                         value = NA),
-            
-            # Heart rate ----
-            numericInput(inputId = "heart_rate", 
-                         label = "What is the heart rate?", 
-                         value = NA),
-            
-            # Strip speed ----
-            radioButtons(inputId = "strip_speed",
-                         label = "What is the speed (mm/s)?",
-                         choices = c("50" = 50,
-                                     "75" = 75,
-                                     "100" = 100,
-                                     "125" = 125),
-                         selected = character(0), 
-                         inline = TRUE),
-            
-        
             # Metric selection dropdown menu ----
             selectInput(inputId = "metric_select", 
                         label = "Select a Metric to Move",
@@ -172,6 +226,52 @@ ui <- shinyUI(
                                     "Peak 3" = "p3_select",
                                     "Trough 3" = "t3_select"),
                         selected = "bl_select"),
+            
+            # Metric Sliders ----
+            fluidRow(
+              column(4,
+                     sliderInput("bl_slider", "Baseline",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE)
+                     ),
+              
+              column(4,
+                     sliderInput("velo_slider", "Scale",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE)
+                     ),
+              
+              column(4,
+                     NULL
+                     )
+            ),
+            
+            fluidRow(
+              column(4,
+                     sliderInput("p1_slider", "Peak 1",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE),
+                     sliderInput("t1_slider", "Trough 1",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE)
+                     ),
+              column(4,
+                     sliderInput("p2_slider", "Peak 2",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE),
+                     sliderInput("t2_slider", "Trough 2",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE)
+                     ),
+              column(4,
+                     sliderInput("p3_slider", "Peak 3",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE),
+                     sliderInput("t3_slider", "Trough 3",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE)
+                     )
+            ),
 
             # Line break ----
             tags$hr(),
@@ -181,104 +281,42 @@ ui <- shinyUI(
      ),
    
    # Main image panel ----
-   mainPanel(width = 9,
+   mainPanel(width = 8,
      
      column(12,
             
             # Text showing current image ID and image progress ----
             fluidRow(
-              column(4,
+              column(3,
                      htmlOutput("status")
-                     )
-            ),
-
-            # Conditional buttons for download / return to input ----
-            fluidRow(
-            
+                     ),
+              
+              # Conditional buttons for download / return to input ----
               column(2,
                      offset = 0, 
-                     br(),
                      actionButton(inputId = "go_to_entry", 
                                   label = "Upload Files")
                      ),
               
               column(2,
                      offset = 0,
-                     br(),
                      downloadButton(outputId = "download_data",
                                     label = "Download Data")
-              )
-            ),
-            
-            # Line break ----
-            tags$hr(),
-            
-            # Image-related questions ----
-            fluidRow(
-              column(2,
-                     align = "center",
-                     radioButtons("dicrotic", "Dicrotic Notch Present?",
-                                  choices = c('No' = 0,
-                                              'Yes' = 1),
-                                  selected = character(),
-                                  inline = TRUE),
-                     br()
-              ),
-              column(2,
-                     align = "center",
-                     radioButtons("rounded", "Envelopes Rounded?",
-                                  choices = c('No' = 0,
-                                              'Yes' = 1),
-                                  selected = character(0),
-                                  inline = TRUE),
-                     br()
-              ),
-              column(2,
-                     align = "center",
-                     radioButtons("flat_diastole", "Diastole Relatively Flat?",
-                                  choices = c('No' = 0,
-                                              'Yes' = 1),
-                                  selected = character(0),
-                                  inline = TRUE),
-                     br()
-              ),
+                     )
               
-              # Rhythym ----
-              
-              column(3,
-                     align = "center",
-                     radioButtons(inputId = "rhythm",
-                                  label = "Regular Rhythm?",
-                                  choices = c("Yes" = 1,
-                                              "No" = 2,
-                                              "Unclear" = 3),
-                                  selected = character(0), 
-                                  inline = TRUE),
-                     br()
               ),
-              
-              
-              column(3,
-                     align = "center",
 
-                     radioButtons(inputId = "paced",
-                                  label = "Paced Rhythm?",
-                                  choices = c("Yes" = 1,
-                                              "No" = 2,
-                                              "Unclear" = 3),
-                                  selected = character(0), 
-                                  inline = TRUE),
-                     br()
-              )
-            ),
+            hr(),
+
+            tags$head(tags$style(".shiny-plot-output{height:70vh !important;}")),
             
             # Conditional output of image / plot ----
             fluidRow(
               column(12,
                      conditionalPanel(
                        condition = "output.fileUploaded",
-                       style = "overflow-y:scroll; max-height: 100%;
-                                overflow-x:scroll; max-width: 100%",
+                       style = "overflow-y:scroll;
+                                overflow-x:scroll",
                        plotOutput(outputId = "image",
                                   click = "click"
                        )
@@ -286,7 +324,8 @@ ui <- shinyUI(
               ),
               
               # Conditional sliders for marker adjustment / plot zoom ----
-              column(12, align = "center",
+              column(12, 
+                     align = "center",
                      conditionalPanel(
                        condition = "output.fileUploaded",
                        
@@ -324,6 +363,7 @@ ui <- shinyUI(
   )
 
 server <- function(input, output, session) {
+  
   
   # Logo output ----
   output$logo <- renderImage({
@@ -437,26 +477,22 @@ server <- function(input, output, session) {
   output$status <- renderText({
     
     if (is.null(inFile()))
-      return("<b><i><font color = red>No images have been uploaded.  Please click below to enter your information and upload files.</b></i></font>")
+      return("<b><i><font color = red>No images have been uploaded.  Please click to the right to enter your information and upload files.</b></i></font>")
     
     if (rv$seq <= nrow(inFile()))
       return(paste("<b><i><font color = red>Current Image ID: ", file_name()[rv$seq], "<br>Progress: Image ", 
             rv$seq, " of ", image_total(), "</b></i></font>", sep = ""))
     
     if (rv$seq > nrow(inFile()))
-      return("<b><i><font color = red>All images have been analyzed.  Please download the data file by clicking below prior to uploading additional images.</b></i><font color = red>")
+      return("<b><i><font color = red>All images have been analyzed.  Please download the data file by clicking to the right prior to uploading additional images.</b></i><font color = red>")
     
   })
   
   # Define reactive values for image analysis ----
   structures <- reactiveValues(bl = NA,
                                velo = NA,
-                               peak1 = NA,
-                               peak2 = NA,
-                               peak3 = NA,
-                               trough1 = NA,
-                               trough2 = NA,
-                               trough3 = NA,
+                               peaks = rep(NA, 3),
+                               troughs = rep(NA, 3),
                                bl_x = 50,
                                velo_x = 125,
                                peak1_x = 200,
@@ -498,31 +534,55 @@ server <- function(input, output, session) {
   # Submit button pressed ----
   observeEvent(input$submit, {
     
-    errorMessasges <- c("Numeric Velocity not Identified",
-                        "Baseline Not Marked",
-                        "Velocity Not Marked",
-                        "One or More Peaks Not Marked",
-                        "One or More Troughs Not Marked"
+    errorMessages <- c("Numeric Velocity Not Identified",
+                       "Heart Rate Not Identified",
+                       "Speed Not Identified",
+                       "Baseline Not Marked",
+                       "Velocity Not Marked",
+                       "One or More Peaks Not Marked",
+                       "One or More Troughs Not Marked",
+                       "Dicrotic Notch Not Assessed",
+                       "Envelopes Not Assessed",
+                       "Diastole Not Assessed",
+                       "Rhythm Regularity Not Assessed",
+                       "Rhythm Pacing Not Assessed"
                         )
     
-    errors <- c(identical(input$velo_num, 0),
-                identical(structures$bl, img_dim()[2] - 10),
-                identical(structures$velo, img_dim()[2] - 10),
-                identical(structures$peaks[1], img_dim()[2] - 10) |
-                  identical(structures$peaks[2], img_dim()[2] - 10) |
-                  identical(structures$peaks[3], img_dim()[2] - 30),
-                identical(structures$troughs[1], img_dim()[2] - 30) |
-                  identical(structures$troughs[2], img_dim()[2] - 30) |
-                  identical(structures$troughs[3], img_dim()[2] - 30)
+    errors <- c((input$velo_num == 0) & (!is.na(input$velo_num)),
+                (input$heart_rate == 0) & (!is.na(input$heart_rate)),
+                is.null(input$strip_speed),
+                (structures$bl == img_dim()[2] - 10) & (!is.na(structures$bl)),
+                (structures$velo == img_dim()[2] - 10) & (!is.na(structures$velo)),
+                (((structures$peaks[1] == img_dim()[2] - 10) |
+                  (structures$peaks[2] == img_dim()[2] - 10) |
+                  (structures$peaks[3] == img_dim()[2] - 30)) &
+                all(!is.na(structures$peaks))),
+                (((structures$troughs[1] == img_dim()[2] - 30) |
+                    (structures$troughs[2] == img_dim()[2] - 30) |
+                    (structures$troughs[3] == img_dim()[2] - 30)) &
+                   all(!is.na(structures$troughs))),
+                is.null(input$dicrotic),
+                is.null(input$envelopes),
+                is.null(input$flat_diastole),
+                is.null(input$rhythm),
+                is.null(input$paced)
                 )
     
-    errorDisplay <- paste(errorMessages[errors], collapse = "/n")
+    if (input$cant_read == 1){
+      
+      errorDisplay <- NULL
+      
+    } else {
+      
+      errorDisplay <- errorMessages[errors]
+      
+    }
     
     # Prevent submission process if data is not filled out properly ----
-    if (length(errorMessages[errors]) != 0){
+    if (length(errorDisplay) != 0){
       showModal(modalDialog(
-        h5("Your submission has the following errors:/n"),
-        HTML(errorDisplay),
+        h5("The following errors must be fixed prior to submission:"),
+        HTML(paste(errorDisplay, collapse = "<br>")),
         title = "Invalid Submission",
         easyClose = TRUE,
         footer = NULL,
@@ -538,9 +598,14 @@ server <- function(input, output, session) {
                        inputId = "velo_num", 
                        label = "What velocity (cm/s) is marked by the scale icon?", 
                        value = 0)
-    
+      
+    # Reset heart_rate ----
+    numericInput(inputId = "heart_rate", 
+                 label = "What is the heart rate?", 
+                 value = 0)
+      
     # Reset radio buttons ----
-    updateRadioButtons(session, inputId = "can_read",
+    updateRadioButtons(session, inputId = "cant_read",
                        label = "Is the image un-measurable?",
                        choices = c("No" = 0,
                                    "Yes" = 1),
@@ -573,12 +638,12 @@ server <- function(input, output, session) {
     ) 
 
     # Update dataframe with new values ----
-    if (input$can_read == 1){
+    if (input$cant_read == 0){
       
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                              "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                              "anesthesiologist_measuring" = input$reader,
-                             "image_unmeasurable" = input$can_read,
+                             "image_unmeasurable" = input$cant_read,
                              "num_beats" = input$num_beats,
                              "dicrotic_notch" = input$dicrotic,
                              "rounded_envelope" = input$rounded,
@@ -597,12 +662,12 @@ server <- function(input, output, session) {
                              "rri_3" = calculateRRI(structures, 3))
     }
     
-    else if (input$can_read == 0){
+    else if (input$cant_read == 1){
       
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                              "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                              "anesthesiologist_measuring" = input$reader,
-                             "image_unmeasurable" = input$can_read,
+                             "image_unmeasurable" = input$cant_read,
                              "num_beats" = NA,
                              "dicrotic_notch" = NA,
                              "rounded_envelope" = NA,
@@ -669,20 +734,20 @@ server <- function(input, output, session) {
     }
   })
   
-  # Toggle status of sliders and radiobuttons based on can_read ---
+  # Toggle status of sliders and radiobuttons based on cant_read ---
   
   observe({
     
-    toggleState(id = "num_beats", condition = input$can_read == 0)
-    toggleState(id = "metric_select", condition = input$can_read == 0)
-    toggleState(id = "velo_num", condition = input$can_read == 0)
-    toggleState(id = "heart_rate", condition = input$can_read == 0)
-    toggleState(id = "strip_speed", condition = input$can_read == 0)
-    toggleState(id = "dicrotic", condition = input$can_read == 0)
-    toggleState(id = "rhythm", condition = input$can_read == 0)
-    toggleState(id = "paced", condition = input$can_read == 0)
-    toggleState(id = "flat_diastole", condition = input$can_read == 0)
-    toggleState(id = "rounded", condition = input$can_read == 0)
+    toggleState(id = "num_beats", condition = input$cant_read == 0)
+    toggleState(id = "metric_select", condition = input$cant_read == 0)
+    toggleState(id = "velo_num", condition = input$cant_read == 0)
+    toggleState(id = "heart_rate", condition = input$cant_read == 0)
+    toggleState(id = "strip_speed", condition = input$cant_read == 0)
+    toggleState(id = "dicrotic", condition = input$cant_read == 0)
+    toggleState(id = "rhythm", condition = input$cant_read == 0)
+    toggleState(id = "paced", condition = input$cant_read == 0)
+    toggleState(id = "flat_diastole", condition = input$cant_read == 0)
+    toggleState(id = "rounded", condition = input$cant_read == 0)
     
   })
   
@@ -1419,8 +1484,9 @@ server <- function(input, output, session) {
  
   }, width = if(is.null(img_dim())){100} else{img_dim()[1]*input$plot_size},
      height = if(is.null(img_dim())){100} else{img_dim()[2]*input$plot_size})
-    
   })
+
+  
   
   # Select metric - switch position of nudge slider ----
   observeEvent(input$metric_select, {
@@ -1571,9 +1637,9 @@ server <- function(input, output, session) {
   })
   
   # Set data values to NA if image is unmeasurable ----
-  observeEvent(input$can_read, {
+  observeEvent(input$cant_read, {
     
-    if (input$can_read == 1){
+    if (input$cant_read == 1){
       
       structures$bl <- NA
       structures$velo <- NA
@@ -1583,7 +1649,7 @@ server <- function(input, output, session) {
       rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
                              "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
                              "anesthesiologist_measuring" = input$reader,
-                             "image_unmeasurable" = input$can_read,
+                             "image_unmeasurable" = input$cant_read,
                              "num_beats" = NA,
                              "dicrotic_notch" = NA,
                              "rounded_envelope" = NA,
