@@ -1,178 +1,397 @@
+# Load libraries
 library(shiny)
 library(shinyjs)
 library(jpeg)
+library(RMySQL)
 
-ui <- fluidPage(
+# Source authentication information for MySQL database ----
+source("db.R")
 
-   useShinyjs(),
+# Source functions ----
+source("functions.R")
+
+# Formatting Parameters ----
+cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
+          "#FF6900", "#FF00EB", "#00F7FF", "#FFFFFF",
+          "#000000", "#8B888A")
+
+ui <- bootstrapPage(
+  shinyUI(
+
+  # Initialize navbar page ---- 
+  navbarPage(
+    "Renal Resistive Index Analysis", id = "tabs",
+    
+    # File upload interface ----
+    tabPanel("Step 1",
+  
+             # Entrance Message ----
+             fluidRow(column(12,
+                             h5("Welcome to the renal resistive index analysis 
+                                platform. Please enter your information and 
+                                upload images below.")
+                             )
+                      ),
+             
+             # Line break ----
+             hr(),
+             
+             # Sidebar ----
+             sidebarPanel(
+                             # Select a file ----
+                             fileInput(inputId = "files", 
+                                       label = "Select Images to Analyze",
+                                       multiple = TRUE,
+                                       accept = c("image/jpeg")),
+                             
+                             # Conditional panel showing image IDs uploaded ----
+                             conditionalPanel(condition = "output.fileUploaded",
+                                              htmlOutput("files_uploaded")),
+                             
+                             # Line break ----
+                             hr(),
+                          
+                             # Input: Select reader ----
+                             radioButtons("reader", "Anesthesiologist Reading",
+                                          choices = c('Anne Cherry, MD' = "ac",
+                                                      'Mark Stafford-Smith, MD' = "mss"),
+                                          selected = "ac"),
+                             
+                             # Line break ----
+                             hr(),
+
+                             # Passcode input to enable remote file upload ----
+                             passwordInput(inputId = "passcode",
+                                           label = "Data Upload Passcode",
+                                           value = ""),
+                             
+                             # Action button to verify passcode ----
+                             actionButton(inputId = "check_pass",
+                                          label = "Verify Passcode"),
+                             
+                             # Breaks ----
+                             br(),
+                             br(),
+                             
+                             # Text of passcode verification result ----
+                             htmlOutput(outputId = "pass_text"),
+                             
+                             # Line break ----
+                             hr(),
+                             
+                             # Button to advance to analysisinterface ----
+                             actionButton(inputId = "go_to_read",
+                                          label = "Analyze Images")
+
+                             ),
+
+             # Logo Panel ----
+             mainPanel(
+               imageOutput("logo"),
+               hr(),
+               h4(uiOutput(outputId = "link"))
+             )
+             ),
+    
+    # Analysis interface ----
+    tabPanel("Step 2", id = "analysis_tab",
+             
+             # Enable javascript ----
+             useShinyjs(),
+             
+             tags$head(tags$style(
+               HTML('body, label, button, select { 
+                    font-family: "Avenir";
+                    font-size:9.5px;
+                    }')
+               
+               )),
+
+   # Slider Colors ----
+   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #FF0000; border-top-color: #FF0000; border-bottom-color: #FF0000; border-color: #FF0000}")),
+   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #FF6900; border-top-color: #FF6900; border-bottom-color: #FF6900; border-color: #FF6900}")),
+   tags$style(HTML(".js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {background: #000CFF; border-top-color: #000CFF; border-bottom-color: #000CFF; border-color: #000CFF}")),
+   tags$style(HTML(".js-irs-3 .irs-single, .js-irs-3 .irs-bar-edge, .js-irs-3 .irs-bar {background: #FF00EB; border-top-color: #FF00EB; border-bottom-color: #FF00EB; border-color: #FF00EB}")),
+   tags$style(HTML(".js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {background: #00FF28; border-top-color: #00FF28; border-bottom-color: #00FF28; border-color: #00FF28}")),
+   tags$style(HTML(".js-irs-5 .irs-single, .js-irs-5 .irs-bar-edge, .js-irs-5 .irs-bar {background: #00F7FF; border-top-color: #00F7FF; border-bottom-color: #00F7FF; border-color: #00F7FF}")),
+   tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: #F7FF00; border-top-color: #F7FF00; border-bottom-color: #F7FF00; border-color: #F7FF00}")),
+   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: #FFFFFF; border-top-color: #FFFFFF; border-bottom-color: #FFFFFF; border-color: #FFFFFF}")),
+   tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
+   tags$style(HTML(".js-irs-9 .irs-single, .js-irs-9 .irs-bar-edge, .js-irs-9 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
    
-   tags$head(tags$style(
-     HTML('body, label, input, button, select { 
-          font-family: "Avenir";
-          font-size:10px;
-        }')
-   )),
-   
-   ## Slider Colors
-   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: red; border-top-color: red; border-bottom-color: red; border-color: red}")),
-   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: blue; border-top-color: blue; border-bottom-color: blue; border-color: blue}")),
-   tags$style(HTML(".js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {background: green; border-top-color: green; border-bottom-color: green; border-color: green}")),
-   tags$style(HTML(".js-irs-3 .irs-single, .js-irs-3 .irs-bar-edge, .js-irs-3 .irs-bar {background: orange; border-top-color: orange; border-bottom-color: orange; border-color: orange}")),
-   tags$style(HTML(".js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {background: purple; border-top-color: purple; border-bottom-color: purple; border-color: purple}")),
-   tags$style(HTML(".js-irs-5 .irs-single, .js-irs-5 .irs-bar-edge, .js-irs-5 .irs-bar {background: yellow; border-top-color: yelow; border-bottom-color: yellow; border-color: yellow}")),
-   tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: pink; border-top-color: pink; border-bottom-color: pink; border-color: pink}")),
-   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: tan; border-top-color: tan; border-bottom-color: tan; border-color: tan}")),
-   
-   
-   ## Remove Slider Colors
+   # Remove Slider Numbers ----
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
- 
-   titlePanel("Renal Resistive Index Analysis"),
    
-   hr(),
+   # Sidebar panel ----
+   sidebarPanel(width = 4,
+                
+            # Image measurable? ----
+            fluidRow(
+              column(5,
+                     radioButtons(inputId = "cant_read",
+                         label = "Is the image measurable?",
+                         choices = c("Yes" = 0,
+                                     "No" = 1),
+                         selected = 0,
+                         inline = TRUE)
+                     ),
+              column(7,
+                     # Number of beats ----
+                     radioButtons(inputId = "num_beats",
+                         label = "How many beats will be measured?",
+                         choices = c("1" = 1,
+                                     "2" = 2,
+                                     "3" = 3),
+                         selected = 3, 
+                         inline = TRUE)
+                     )
+              ),
+              
+              
+            fluidRow(
+              column(5,
+                     # Heart rate ----
+                     numericInput(inputId = "heart_rate", 
+                                  label = "What is the heart rate?", 
+                                  value = 0)
+                     ),
+              
+              column(7,
+                     # Numeric value of velocity marker ----
+                     numericInput(inputId = "velo_num", 
+                                  label = "What velocity is marked on the scale?", 
+                                  value = 0)
+                     )
+            ),
+
+            # Questions and Metric Sliders ----
+            tags$head(
+              tags$style(
+                ".selectize-input {
+                 height: 25px; font-size: 9px;
+                 max-height: 25px; min-height: 25px;
+                 line-height: 12.5px;
+                }"
+              ),
+              tags$style(
+                ".selectize-dropdown {
+                line-height: 12.5px; font-size: 9px;
+                }"
+              ),
+              tags$style(
+                "#heart_rate, #velo_num {height: 25px; font-size: 9px}"
+              )
+            ),
+            
+            fluidRow(
+              column(5,
+                     selectInput("flat_diastole", "Diastole Flat?",
+                                 choices = c(" " = 999,
+                                             'No' = 0,
+                                             'Yes' = 1),
+                                  selected = 999),
+                     
+                     selectInput("dicrotic", "Dicrotic Notch?",
+                                  choices = c(" " = 999,
+                                              'No' = 0,
+                                              'Yes' = 1),
+                                  selected = 999),
+                     
+                     selectInput("rounded", "Envelopes Rounded?",
+                                  choices = c(" " = 999,
+                                              'No' = 0,
+                                              'Yes' = 1),
+                                  selected = 999)
+              ),
+              
+              column(7, 
+                     selectInput(inputId = "strip_speed",
+                                 label = "What is the speed (mm/s)?",
+                                 choices = c(" " = 999,
+                                             "50" = 50,
+                                             "75" = 75,
+                                             "100" = 100,
+                                             "125" = 125),
+                                 selected = 999),
+                     
+                     selectInput(inputId = "paced",
+                                  label = "Paced Rhythm?",
+                                  choices = c(" " = 999,
+                                              "Yes" = 1,
+                                              "No" = 2,
+                                              "Unclear" = 3),
+                                  selected = 999),
+                     
+                     selectInput(inputId = "rhythm",
+                                 label = "Regular Rhythm?",
+                                 choices = c(" " = 999,
+                                             "Yes" = 1,
+                                             "No" = 2,
+                                             "Unclear" = 3),
+                                  selected = 999)
+              )
+              
+            ),
+            
+            selectInput(inputId = "metric_select", 
+                        label = "Select a Metric",
+                        choices = c("Baseline" = "bl_select",
+                                    "Scale" = "velo_select",
+                                    "Peak 1" = "p1_select",
+                                    "Trough 1" = "t1_select",
+                                    "Peak 2" = "p2_select",
+                                    "Trough 2" = "t2_select",
+                                    "Peak 3" = "p3_select",
+                                    "Trough 3" = "t3_select"),
+                        selected = "bl_select"),
+
+            # Metric Sliders ----
+            fluidRow(
+              column(4,
+                     sliderInput("bl_slider", "Baseline",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE)
+                     ),
+              
+              column(4,
+                     sliderInput("velo_slider", "Scale",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE)
+                     ),
+              
+              column(4,
+                     NULL
+                     )
+            ),
+            
+            fluidRow(
+              column(4,
+                     sliderInput("p1_slider", "Peak 1",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE),
+                     sliderInput("t1_slider", "Trough 1",
+                                 min = 1, max = 640, value = 525,
+                                 ticks = FALSE)
+                     ),
+              column(4,
+                     sliderInput("p2_slider", "Peak 2",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE),
+                     sliderInput("t2_slider", "Trough 2",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE)
+                     ),
+              column(4,
+                     sliderInput("p3_slider", "Peak 3",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE),
+                     sliderInput("t3_slider", "Trough 3",
+                                 min = 1, max = 640, value = 600,
+                                 ticks = FALSE)
+                     )
+            ),
+
+            # Line break ----
+            tags$hr(),
+            
+            # Image submit button ----
+            actionButton(inputId = "submit", label = "Submit Image")
+     ),
    
-   fluidRow(
+   # Main image panel ----
+   mainPanel(width = 8,
      
-     column(2,
- 
-       # Input: Select a file ----
-       fileInput(inputId = "files", 
-                 label = "Select Images to Analyze",
-                 multiple = TRUE,
-                 accept = c("image/jpeg")),
-      
-       # Input: Select reader ----
-       radioButtons("reader", "Anesthesiologist Reading",
-                    choices = c('Anne Cherry, MD' = "ac",
-                                'Mark Stafford-Smith, MD' = "mss"),
-                    selected = "ac"),
-       
-       # Horizontal line ----
-       tags$hr(),
-       
-       
-       ## Slider on/off boxes
-       selectInput(inputId = "metric_select", 
-                   label = "Select a Metric to Move",
-                   choices = c("Baseline" = "bl_select",
-                               "Scale" = "velo_select",
-                               "Peak 1" = "p1_select",
-                               "Peak 2" = "p2_select",
-                               "Peak 3" = "p3_select",
-                               "Trough 1" = "t1_select",
-                               "Trough 2" = "t2_select",
-                               "Trough 3" = "t3_select"),
-                    selected = "bl_select"),
-       
-       ## Sliders
-       fluidRow(
-         column(6,
-                sliderInput("bl_slider", "Baseline",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("p1_slider", "Peak 1",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("p3_slider", "Peak 3",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE),
-                
-                sliderInput("t2_slider", "Trough 2",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE)
-                
-                ),
-         
-         column(6, 
-                
-                sliderInput("velo_slider", "Scale",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("p2_slider", "Peak 2",
-                            min = 1, max = 640, value = 625,
-                            ticks = FALSE),
-                
-                sliderInput("t1_slider", "Trough 1",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE),
-                
-                sliderInput("t3_slider", "Trough 3",
-                            min = 1, max = 640, value = 600,
-                            ticks = FALSE)
+     column(12,
+            
+            # Text showing current image ID and image progress ----
+            fluidRow(
+              column(3,
+                     htmlOutput("status")
+                     ),
+              
+              # Conditional buttons for download / return to input ----
+              column(2,
+                     offset = 0, 
+                     actionButton(inputId = "go_to_entry", 
+                                  label = "Upload Files")
+                     ),
+              
+              column(2,
+                     offset = 0,
+                     downloadButton(outputId = "download_data",
+                                    label = "Download Data")
+                     )
+              
+              ),
 
-                )
-       ),
+            hr(),
 
-       
-       
-       # Horizontal line ----
-       tags$hr(),
-       
-       actionButton(inputId = "submit", label = "Submit Image"),
-       
-       hr(),
-       
-       downloadButton(outputId = "download_data", label = "Download Data")
-       ),
-     
-     column(10,
+            tags$head(tags$style(".shiny-plot-output{height:70vh !important;}")),
+            
+            # Conditional output of image / plot ----
+            fluidRow(
+              column(12,
+                     conditionalPanel(
+                       condition = "output.fileUploaded",
+                       style = "overflow-y:scroll;
+                                overflow-x:scroll",
+                       plotOutput(outputId = "image",
+                                  click = "click"
+                       )
+                     )
+              ),
+              
+              # Conditional sliders for marker adjustment / plot zoom ----
+              column(12, 
+                     align = "center",
+                     conditionalPanel(
+                       condition = "output.fileUploaded",
+                       
+                       # Line break ----
+                       hr(),
+                       
+                       column(4, align = "center",
+                              sliderInput(inputId = "nudge", label = "Adjust Marker",
+                                          min = 0, max = 1000, value = 500,
+                                          ticks = FALSE)
+                              ),
+                       column(4, align = "center", offset = 0,
+                              br(),
+                              column(3, align = "center",
+                                     actionButton(inputId = "prior_metric", label = "",
+                                                  icon = icon(name = "arrow-left"))),
+                              column(6, align = "center", offset = 0,
+                                     htmlOutput(outputId = "current_metric",
+                                                align = "center")),
+                              column(3, align = "center",
+                                     actionButton(inputId = "next_metric", label = "", 
+                                                  icon = icon(name = "arrow-right")))),
 
-       htmlOutput("status"),
-       
-       # Horizontal line ----
-       tags$hr(),
-       
-       fluidRow(
-         column(4,
-                radioButtons("dicrotic", "Is a Dicrotic Notch Present?",
-                             choices = c('No' = 0,
-                                         'Yes' = 1),
-                             selected = 0,
-                             inline = TRUE)
-                ),
-         column(4,
-                radioButtons("rounded", "Are the Envelopes Rounded?",
-                             choices = c('No' = 0,
-                                         'Yes' = 1),
-                             selected = 0,
-                             inline = TRUE)
-                ),
-         column(4,
-                radioButtons("flat_diastole", "Is a Diastole Relatively Flat?",
-                             choices = c('No' = 0,
-                                         'Yes' = 1),
-                             selected = 1,
-                             inline = TRUE)
-         )
-       ),
-       
-       
-       # Output: Data file ----
-      
-       fluidRow(
-         column(11,
-                conditionalPanel(
-                  condition = "output.fileUploaded",
-                  plotOutput(outputId = "image",
-                             click = "click"
-                  )
-         )
-       )
-       
-       )
-       
+                       column(4, align = "center",
+                              sliderInput(inputId = "plot_size", label = "Plot Zoom",
+                                          min = 0.01, max = 2, value = 1, step = 0.01,
+                                          ticks = FALSE))
+                       )
+                     )
+              )
+            )
      )
-     
    )
+   )
+  )
 )
-       
 
 server <- function(input, output, session) {
   
-  # Basic Reactive Values
+  # Logo output ----
+  output$logo <- renderImage({
+    
+    list(src = "DUSOM_anesthesiology.jpg",
+         width = "95%")
+    
+  }, deleteFile = FALSE)
+  
+  # Basic Reactive Values ----
   rv <- reactiveValues(seq = 1,
                        data = data.frame("image_id" = NA,
                                          "date_time_submit" = NA,
@@ -187,35 +406,53 @@ server <- function(input, output, session) {
                                          "peak_3" = NA,
                                          "trough_1" = NA,
                                          "trough_2" = NA,
-                                         "trough_3" = NA))
+                                         "trough_3" = NA,
+                                         "rri_1" = NA,
+                                         "rri_2" = NA,
+                                         "rri_3" = NA))
   
-  ## User inputs new files
-  ## Reset data frame
-  ## Reset seq reactive value
-  
+  # User inputs new files ----
   observeEvent(input$files, {
     
+    # Reset data frame ----
     rv$data <- data.frame("image_id" = NA,
                           "date_time_submit" = NA,
                           "anesthesiologist_measuring" = NA,
+                          "image_unmeasurable" = NA,
+                          "num_beats" = NA,
                           "dicrotic_notch" = NA,
                           "rounded_envelope" = NA,
                           "flat_diastole" = NA,
                           "baseline" = NA,
                           "scale" = NA,
+                          "velo_num" = NA,
                           "peak_1" = NA,
                           "peak_2" = NA,
                           "peak_3" = NA,
                           "trough_1" = NA,
                           "trough_2" = NA,
-                          "trough_3" = NA)
+                          "trough_3" = NA,
+                          "rri_1" = NA,
+                          "rri_2" = NA,
+                          "rri_3" = NA)
     
+    # Reset seq counter
     rv$seq <- 1
+    
+    # Reset structure reactive values
+    structures$bl <- img_dim()[2] - 10
+    structures$velo <- img_dim()[2] - 10
+    structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
+    structures$troughs <- rep(img_dim()[2] - 30, 3)
+    structures$bl_x <- 50
+    structures$velo_x <- 125
+    structures$peaks_x <- c(200, 275, 50)
+    structures$troughs_x <- c(125, 200, 275)
+    structures$click <- 50
     
   })
   
-  ## Define input files
-  
+  # Define input files ----
   inFile <- reactive({
     
     if (is.null(input$files))
@@ -225,7 +462,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Calculate total number of images
+  # Calculate total number of images ----
   image_total <- reactive({
 
     if (is.null(inFile()))
@@ -234,8 +471,7 @@ server <- function(input, output, session) {
     return(nrow(inFile()))
   })
   
-  ## Grab File Name to Define Image ID
-  
+  # Grab file name ----
   file_name <- reactive({
   
     if (is.null(inFile()))
@@ -244,65 +480,385 @@ server <- function(input, output, session) {
     return(stringi::stri_extract_first(str = inFile()$name, regex = ".*(?=\\.)"))
   })
   
-  ## Status Display
+  # Create file name output for input screen ----
+  output$files_uploaded <- renderText({
+    
+    if (is.null(inFile)){
+      return("")
+    } else if (!is.null(inFile)){
+      return(paste("<b><i>Image IDs uploaded: ", paste(file_name(), collapse = ", "), ".</b></i>", sep = ""))
+    }
+    
+  })
   
+  # Status display output ----
   output$status <- renderText({
     
     if (is.null(inFile()))
-      return("<b><i><font color = red>No Images have Been Uploaded.  Please Uploaded Files to Continue.</b></i></font>")
+      return("<b><i><font color = red>No images have been uploaded.  Please click to the right to enter your information and upload files.</b></i></font>")
     
     if (rv$seq <= nrow(inFile()))
       return(paste("<b><i><font color = red>Current Image ID: ", file_name()[rv$seq], "<br>Progress: Image ", 
             rv$seq, " of ", image_total(), "</b></i></font>", sep = ""))
     
     if (rv$seq > nrow(inFile()))
-      return("<b><i><font color = red>All images have been analyzed.  Please exit the browser, or upload additional images to continue</b></i><font color = red>")
+      return("<b><i><font color = red>All images have been analyzed.  Please download the data file by clicking to the right prior to uploading additional images.</b></i><font color = red>")
     
   })
   
-  ## Define reactive values for image analysis
-  structures <- reactiveValues(bl = 625,
-                               velo = 625,
-                               peak1 = 625,
-                               peak2 = 625,
-                               peak3 = 600,
-                               trough1 = 600,
-                               trough2 = 600,
-                               trough3 = 600,
-                               bl_x = 100,
-                               velo_x = 200,
-                               peak1_x = 300,
-                               peak2_x = 400,
-                               peak3_x = 100,
-                               trough1_x = 200,
-                               trough2_x = 300,
-                               trough3_x = 400,
+  # Define reactive values for image analysis ----
+  structures <- reactiveValues(bl = NA,
+                               velo = NA,
+                               peaks = rep(NA, 3),
+                               troughs = rep(NA, 3),
+                               bl_x = 50,
+                               velo_x = 125,
+                               peak1_x = 200,
+                               peak2_x = 275,
+                               peak3_x = 50,
+                               trough1_x = 125,
+                               trough2_x = 200,
+                               trough3_x = 275,
                                click = 50,
                                image_dim = c(NA, NA))
+
+  # Define Current Metric ----
+  metric <- reactive({
+
+      mets <- c("bl_select" = "Baseline",
+                "velo_select" = "Scale",
+                "p1_select" = "Peak 1",
+                "t1_select" = "Trough 1",
+                "p2_select" = "Peak 2",
+                "t2_select" = "Trough 2",
+                "p3_select" = "Peak 3",
+                "t3_select" = "Trough 3")
+      
+      return(as.character(mets[input$metric_select]))
+    
+  })
   
-  ## Submit button pressed
+  # Current metric output for toggle ----
+  
+  output$current_metric <- renderText({
+    
+    paste("<b><font size = 1 px><font color = black>",
+          "Metric Toggle:<br></font><font size = 2><font color = red>", 
+          metric(), "</b></font>",
+          sep = "")
+    
+  })
+  
+  # Submit button pressed ----
   observeEvent(input$submit, {
     
-    ## Update dataframe with new values
-    rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
-                           "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
-                           "anesthesiologist_measuring" = input$reader,
-                           "dicrotic_notch" = input$dicrotic,
-                           "rounded_envelope" = input$rounded,
-                           "flat_diastole" = input$flat_diastole,
-                           "baseline" = structures$bl,
-                           "scale" = structures$velo,
-                           "peak_1" = structures$peak1,
-                           "peak_2" = structures$peak2,
-                           "peak_3" = structures$peak3,
-                           "trough_1" = structures$trough1,
-                           "trough_2" = structures$trough2,
-                           "trough_3" = structures$trough3)
+    errorMessages <- c("Numeric Velocity Not Identified",
+                       "Heart Rate Not Identified",
+                       "Speed Not Identified",
+                       "Baseline Not Marked",
+                       "Velocity Not Marked",
+                       "One or More Peaks Not Marked",
+                       "One or More Troughs Not Marked",
+                       "Dicrotic Notch Not Assessed",
+                       "Envelopes Not Assessed",
+                       "Diastole Not Assessed",
+                       "Rhythm Regularity Not Assessed",
+                       "Rhythm Pacing Not Assessed"
+                        )
     
-    ## Increase seq reactive value by 1
+    errors <- c((input$velo_num == 0) & (!is.na(input$velo_num)),
+                (input$heart_rate == 0) & (!is.na(input$heart_rate)),
+                is.null(input$strip_speed),
+                (structures$bl == img_dim()[2] - 10) & (!is.na(structures$bl)),
+                (structures$velo == img_dim()[2] - 10) & (!is.na(structures$velo)),
+                (structures$peaks[1] == img_dim()[2] - 10) & (!is.na(structures$peaks[1])) |
+                  (structures$peaks[2] == img_dim()[2] - 10) & (!is.na(structures$peaks[2])) |
+                  (structures$peaks[3] == img_dim()[2] - 30) & (!is.na(structures$peaks[3])),
+                (structures$troughs[1] == img_dim()[2] - 30) & (!is.na(structures$troughs[1])) |
+                    (structures$troughs[2] == img_dim()[2] - 30) & (!is.na(structures$troughs[2])) |
+                    (structures$troughs[3] == img_dim()[2] - 30) & (!is.na(structures$troughs[3])),
+                input$dicrotic == 999,
+                input$rounded == 999,
+                input$flat_diastole == 999,
+                input$rhythm == 999,
+                input$paced == 999
+                )
+    
+    if (input$cant_read == 1){
+      
+      errorDisplay <- NULL
+      
+    } else {
+      
+      errorDisplay <- errorMessages[errors]
+      
+    }
+    
+    # Prevent submission process if data is not filled out properly ----
+    if (length(errorDisplay) != 0){
+      showModal(modalDialog(
+        h5("The following errors must be fixed prior to submission:"),
+        HTML(paste(errorDisplay, collapse = "<br>")),
+        title = "Invalid Submission",
+        easyClose = TRUE,
+        footer = NULL,
+        fade = TRUE,
+        size = "m"
+      ))
+    }
+
+    else {
+      
+    # Reset velo_num ----
+    updateNumericInput(session,
+                       inputId = "velo_num", 
+                       label = "What velocity is marked on the scale?", 
+                       value = 0)
+      
+    # Reset heart_rate ----
+    updateNumericInput(session,
+                       inputId = "heart_rate", 
+                       label = "What is the heart rate?", 
+                       value = 0)
+      
+    # Reset radio buttons ----
+    updateRadioButtons(session, inputId = "cant_read",
+                       label = "Is the image measurable?",
+                       choices = c("No" = 1,
+                                   "Yes" = 0),
+                       selected = 0,
+                       inline = TRUE
+                       )
+    
+    updateRadioButtons(session, inputId = "num_beats",
+                       label = "How many beats will be measured?",
+                       choices = c("1" = 1,
+                                   "2" = 2,
+                                   "3" = 3),
+                       selected = 3, 
+                       inline = TRUE
+                       )
+    
+    updateSelectInput(session, "flat_diastole", 
+                      "Diastole Flat?",
+                      choices = c(" " = 999,
+                                  'No' = 0,
+                                  'Yes' = 1),
+                selected = 999)
+    
+    updateSelectInput(session, "dicrotic", 
+                      "Dicrotic Notch?",
+                      choices = c(" " = 999,
+                                  'No' = 0,
+                                  'Yes' = 1),
+                      selected = 999)
+    
+    updateSelectInput(session, "rounded", 
+                      "Envelopes Rounded?",
+                      choices = c(" " = 999,
+                                  'No' = 0,
+                                  'Yes' = 1),
+                      selected = 999)
+    
+    updateSelectInput(session, inputId = "strip_speed",
+                      label = "What is the speed (mm/s)?",
+                      choices = c(" " = 999,
+                                  "50" = 50,
+                                  "75" = 75,
+                                  "100" = 100,
+                                  "125" = 125),
+                      selected = 999)
+    
+    updateSelectInput(session, inputId = "paced",
+                      label = "Paced Rhythm?",
+                      choices = c(" " = 999,
+                                  "Yes" = 1,
+                                  "No" = 2,
+                                  "Unclear" = 3),
+                      selected = 999)
+    
+    updateSelectInput(session, inputId = "rhythm",
+                      label = "Regular Rhythm?",
+                      choices = c(" " = 999,
+                                  "Yes" = 1,
+                                  "No" = 2,
+                                  "Unclear" = 3),
+                      selected = 999)
+    
+    # Reset metric selection ----
+    updateSelectInput(session,
+                      inputId = "metric_select", 
+                      label = "Select a Metric",
+                      choices = c("Baseline" = "bl_select",
+                                  "Scale" = "velo_select",
+                                  "Peak 1" = "p1_select",
+                                  "Trough 1" = "t1_select",
+                                  "Peak 2" = "p2_select",
+                                  "Trough 2" = "t2_select",
+                                  "Peak 3" = "p3_select",
+                                  "Trough 3" = "t3_select"),
+                      selected = "bl_select"
+    ) 
+
+    # Update dataframe with new values ----
+    if (input$cant_read == 0){
+      
+      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
+                             "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
+                             "anesthesiologist_measuring" = input$reader,
+                             "image_unmeasurable" = input$cant_read,
+                             "num_beats" = input$num_beats,
+                             "dicrotic_notch" = input$dicrotic,
+                             "rounded_envelope" = input$rounded,
+                             "flat_diastole" = input$flat_diastole,
+                             "baseline" = structures$bl,
+                             "scale" = structures$velo,
+                             "velo_num" = input$velo_num,
+                             "peak_1" = structures$peaks[1],
+                             "peak_2" = structures$peaks[2],
+                             "peak_3" = structures$peaks[3],
+                             "trough_1" = structures$troughs[1],
+                             "trough_2" = structures$troughs[2],
+                             "trough_3" = structures$troughs[3],
+                             "rri_1" = calculateRRI(structures, 1),
+                             "rri_2" = calculateRRI(structures, 2),
+                             "rri_3" = calculateRRI(structures, 3))
+    }
+    
+    else if (input$cant_read == 1){
+      
+      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
+                             "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
+                             "anesthesiologist_measuring" = input$reader,
+                             "image_unmeasurable" = input$cant_read,
+                             "num_beats" = NA,
+                             "dicrotic_notch" = NA,
+                             "rounded_envelope" = NA,
+                             "flat_diastole" = NA,
+                             "baseline" = structures$bl,
+                             "scale" = structures$velo,
+                             "velo_num" = NA,
+                             "peak_1" = structures$peaks[1],
+                             "peak_2" = structures$peaks[2],
+                             "peak_3" = structures$peaks[3],
+                             "trough_1" = structures$troughs[1],
+                             "trough_2" = structures$troughs[2],
+                             "trough_3" = structures$troughs[3],
+                             "rri_1" = NA,
+                             "rri_2" = NA,
+                             "rri_3" = NA)
+    }
+    
+    
+    if (input$passcode == dbMasterPassword){
+      
+      db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+                      port = dbPort, user = dbUser, 
+                      password = dbMasterPassword)
+      
+      query <-  sprintf(
+        "INSERT INTO rri_reads (%s) VALUES ('%s')",
+        paste(names(rv$data), collapse = ", "),
+        paste(rv$data[rv$seq, ], collapse = "', '")
+        )
+      
+      dbGetQuery(db, query)
+      dbDisconnect(db)
+      
+      # Save image
+      png(filename = paste("/srv/shiny-server/rri_app/data/readImages/", 
+                           file_name()[rv$seq], 
+                           "_", input$reader, "_", 
+                           format(Sys.time(), "%Y_%m_%d_%H%M"), 
+                           ".png", sep = ""),
+          width = img_dim()[1],
+          height = img_dim()[2])
+      {
+        img <- readJPEG(inFile()$datapath[rv$seq], native = TRUE)
+        par(mar = c(0,0,0,0))
+        
+        plot(x = seq(0, dim(img)[2], length.out = 1000), 
+             y = seq(0, dim(img)[1], length.out = 1000), 
+             type='n',
+             xlab = "",
+             ylab = "",
+             axes = FALSE,
+             frame.plot = TRUE)
+        rasterImage(img,0, 0, dim(img)[2], dim(img)[1])
+        
+        ## Baseline
+        segments(x0 = structures$bl_x - 20, x1 = structures$bl_x + 20, y0 = structures$bl, y1 = structures$bl,
+                 col = cols[1],
+                 lwd = 3)
+        
+        text(x = structures$bl_x - 35, y = structures$bl, labels = "BL", col = cols[1],
+             font = 2)
+        
+        ## Velo
+        segments(x0 = structures$velo_x - 20, x1 = structures$velo_x + 20, y0 = structures$velo, y1 = structures$velo,
+                 col = cols[5],
+                 lwd = 3)
+        
+        text(x = structures$velo_x - 35, y = structures$velo, labels = "SC", col = cols[5],
+             font = 2)
+        
+        ## Peak 1
+        segments(structures$peaks_x[1] - 20, x1 = structures$peaks_x[1] + 20, y0 = structures$peaks[1], y1 = structures$peaks[1],
+                 col = cols[2],
+                 lwd = 3)
+        
+        text(x = structures$peaks_x[1] - 35, y = structures$peaks[1], labels = "P1", col = cols[2],
+             font = 2)
+        
+        ## Peak 2
+        segments(structures$peaks_x[2] - 20, x1 = structures$peaks_x[2] + 20, y0 = structures$peaks[2], y1 = structures$peaks[2],
+                 col = cols[3],
+                 lwd = 3)
+        
+        text(x = structures$peaks_x[2] - 35, y = structures$peaks[2], labels = "P2", col = cols[3],
+             font = 2)
+        
+        ## Peak 3
+        segments(structures$peaks_x[3] - 20, x1 = structures$peaks_x[3] + 20, y0 = structures$peaks[3], y1 = structures$peaks[3],
+                 col = cols[4],
+                 lwd = 3)
+        
+        text(x = structures$peaks_x[3] - 35, y = structures$peaks[3], labels = "P3", col = cols[4],
+             font = 2)
+        
+        ## Trough 1
+        segments(structures$troughs_x[1] - 20, x1 = structures$troughs_x[1] + 20, y0 = structures$troughs[1], y1 = structures$troughs[1],
+                 col = cols[6],
+                 lwd = 3)
+        
+        text(x = structures$troughs_x[1] - 35, y = structures$troughs[1], labels = "T1", col = cols[6],
+             font = 2)
+        
+        ## Trough 2
+        segments(structures$troughs_x[2] - 20, x1 = structures$troughs_x[2] + 20, y0 = structures$troughs[2], y1 = structures$troughs[2],
+                 col = cols[7],
+                 lwd = 3)
+        
+        text(x = structures$troughs_x[2] - 35, y = structures$troughs[2], labels = "T2", col = cols[7],
+             font = 2)
+        
+        ## Trough 3
+        segments(structures$troughs_x[3] - 20, x1 = structures$troughs_x[3] + 20, y0 = structures$troughs[3], y1 = structures$troughs[3],
+                 col = cols[8],
+                 lwd = 3)
+        
+        text(x = structures$troughs_x[3] - 35, y = structures$troughs[3], labels = "T3", col = cols[8],
+             font = 2)
+        
+      }
+      dev.off()
+      
+    }
+    
+    # Increase seq reactive value by 1 ----
     rv$seq <- rv$seq + 1
   
-    ## Show pop-up message box
+    # Show submission modal dialog ----
     showModal(modalDialog(
       title = "Data Submitted",
       "Data for this Image Has Been Submitted. Continue by Clicking Outside this Box.",
@@ -311,55 +867,644 @@ server <- function(input, output, session) {
       fade = TRUE,
       size = "m"
     ))
-   
-    ## Reset structure reactive values
-    structures$bl <- 625
-    structures$velo <- 625
-    structures$peak1 <- 625
-    structures$peak2 <- 625
-    structures$peak3 <- 600
-    structures$trough1 <- 600
-    structures$trough2 <- 600
-    structures$trough3 <- 600
-    structures$bl_x <- 100
-    structures$velo_x <- 200
-    structures$peak1_x <- 300
-    structures$peak2_x <- 400
-    structures$peak3_x <- 100
-    structures$trough1_x <- 200
-    structures$trough2_x <- 300
-    structures$trough3_x <- 400
+      
+    # Reset zoom slider ----
+    updateSliderInput(session, "plot_size", val = 1)
+  
+    # Reset structure reactive values ----
+    structures$bl <- img_dim()[2] - 10
+    structures$velo <- img_dim()[2] - 10
+    structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
+    structures$troughs <- rep(img_dim()[2] - 30, 3)
+    structures$bl_x <- 50
+    structures$velo_x <- 125
+    structures$peaks_x <- c(200, 275, 50)
+    structures$troughs_x <- c(125, 200, 275)
     structures$click <- 50
-    
-    # Reset sliders
-    updateSliderInput(session, "bl_slider", val = 625)
-    updateSliderInput(session, "velo_slider", val = 625)
-    updateSliderInput(session, "p1_slider", val = 625)
-    updateSliderInput(session, "p2_slider", val = 625)
-    updateSliderInput(session, "p3_slider", val = 600)
-    updateSliderInput(session, "t1_slider", val = 600)
-    updateSliderInput(session, "t2_slider", val = 600)
-    updateSliderInput(session, "t3_slider", val = 600)
-     
+
+    }
   })
   
-  ## Toggle status of inputs
+  # Toggle status of sliders and radiobuttons based on cant_read ---
+  
   observe({
     
-    ## Submit available after images uploaded; deactivate after all are read
+    toggleState(id = "num_beats", condition = input$cant_read == 0)
+    toggleState(id = "metric_select", condition = input$cant_read == 0)
+    toggleState(id = "velo_num", condition = input$cant_read == 0)
+    toggleState(id = "heart_rate", condition = input$cant_read == 0)
+    toggleState(id = "strip_speed", condition = input$cant_read == 0)
+    toggleState(id = "dicrotic", condition = input$cant_read == 0)
+    toggleState(id = "rhythm", condition = input$cant_read == 0)
+    toggleState(id = "paced", condition = input$cant_read == 0)
+    toggleState(id = "flat_diastole", condition = input$cant_read == 0)
+    toggleState(id = "rounded", condition = input$cant_read == 0)
+    
+  })
+  
+  # Toggle allowable status of inputs ----
+  observe({
+    
+    # Next metric available after image uploaded; deactivate after all are read
+    toggleState(id = "next_metric", condition = all(c(!is.null(input$files), 
+                                                 rv$seq <= nrow(input$files))))
+    
+    # Prior metric available after image uploaded; deactivate after all are read
+    toggleState(id = "prior_metric", condition = all(c(!is.null(input$files), 
+                                                      rv$seq <= nrow(input$files))))
+    
+    # Submit available after images uploaded; deactivate after all are read
     toggleState(id = "submit", condition = all(c(!is.null(input$files), 
                                                  rv$seq <= nrow(input$files))))
     
-    ## Download available after all images read
+    ## Download available after at least one image is read
     toggleState(id = "download_data", condition = all(c(!is.null(input$files),
-                                                        rv$seq > nrow(input$files))))
+                                                        rv$seq > 1)))
     
-    ## Sliders available after images uploaded; deactivate after all are read
-    toggleState(id = "y_pos", condition = all(c(!is.null(input$files),
-                                                rv$seq <= nrow(input$files))))
+    ## Analyze Image Button available after files uploaded
+    toggleState(id = "go_to_read", condition = !is.null(inFile()))
+    
+    ## Upload images button available only if no files uploaded or done
+    toggleState(id = "go_to_entry", condition = (is.null(inFile()) |
+                                                 rv$seq > nrow(input$files)))
+    
   })
   
-  ## Define data download output
+  # Move to analysis tab panel with button click ---
+  observeEvent(input$go_to_entry, {
+    
+    updateNavbarPage(session, inputId = "tabs", selected = "Step 1")
+    
+  })
+  
+  # Move to upload tab panel with button click ----
+  observeEvent(input$go_to_read, {
+    
+    updateNavbarPage(session, inputId = "tabs", selected = "Step 2")
+    
+  })
+  
+  
+  # User clicks next metric ----
+  observeEvent(input$next_metric, {
+
+    if (input$num_beats == 3){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p2_select"
+        ) 
+        
+      } else if (input$metric_select == "p2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t2_select"
+        ) 
+        
+      } else if (input$metric_select == "t2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p3_select"
+        ) 
+        
+      } else if (input$metric_select == "p3_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t3_select"
+        ) 
+        
+      } else if (input$metric_select == "t3_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "bl_select"
+        ) 
+        
+      }
+      
+    } else if (input$num_beats == 2){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "p2_select"
+        ) 
+        
+      } else if (input$metric_select == "p2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "t2_select"
+        ) 
+        
+      } else if (input$metric_select == "t2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "bl_select"
+        ) 
+        
+      }
+      
+    } else if (input$num_beats == 1){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "bl_select"
+        ) 
+        
+      } 
+      
+    }
+
+  })
+  
+  # User clicks prior metric ----
+  
+  observeEvent(input$prior_metric, {
+    
+    if (input$num_beats == 3){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t3_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "bl_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p2_select"
+        ) 
+        
+      } else if (input$metric_select == "p3_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "t2_select"
+        ) 
+        
+      } else if (input$metric_select == "t3_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select",
+                                      "Peak 3" = "p3_select",
+                                      "Trough 3" = "t3_select"),
+                          selected = "p3_select"
+        ) 
+        
+      }
+      
+    } else if (input$num_beats == 2){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "t2_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "bl_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } else if (input$metric_select == "p2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "t2_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select",
+                                      "Peak 2" = "p2_select",
+                                      "Trough 2" = "t2_select"),
+                          selected = "p2_select"
+        ) 
+        
+      }
+      
+    } else if (input$num_beats == 1){
+      
+      if (input$metric_select == "bl_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "t1_select"
+        ) 
+        
+      } else if (input$metric_select == "velo_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "bl_select"
+        ) 
+        
+      } else if (input$metric_select == "p1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "velo_select"
+        ) 
+        
+      } else if (input$metric_select == "t1_select"){
+        
+        updateSelectInput(session,
+                          inputId = "metric_select", 
+                          label = "Select a Metric",
+                          choices = c("Baseline" = "bl_select",
+                                      "Scale" = "velo_select",
+                                      "Peak 1" = "p1_select",
+                                      "Trough 1" = "t1_select"),
+                          selected = "p1_select"
+        ) 
+        
+      } 
+      
+    }
+    
+  })
+  
+  # Define data download output ----
   output$download_data <- downloadHandler(
     filename = function() {
       paste(input$reader, "_", format(Sys.time(), "%Y_%m_%d_%H%M"), ".csv", sep = "")
@@ -368,11 +1513,35 @@ server <- function(input, output, session) {
       write.csv(rv$data, file, row.names = FALSE)
     })
   
-  ## Image generation
+  # Define image dimensions ----
+  img_dim <- reactive({
+    
+    if(is.null(inFile())){
+      return(NULL)
+    } else if (rv$seq > nrow(inFile())){
+      return(NULL)
+    } else {
+      img <- readJPEG(inFile()$datapath[rv$seq], native = TRUE) 
+      x <- dim(img)[2]
+      y <- dim(img)[1]
+      return(c(x, y))
+    }
+      
+  })
+  
+  # Update slider max and position based on img_dim ----
+  observeEvent(img_dim(), {
+
+    updateSliderInput(session, "nudge", max = img_dim()[2],
+                      value = img_dim()[2] - 10)
+    
+  })
+ 
+  
+  # Image generation ----
   observe({
     
     output$image <- renderPlot({
-
       
       if (is.null(inFile())){
         
@@ -386,290 +1555,473 @@ server <- function(input, output, session) {
         
         return({
           img <- readJPEG(inFile()$datapath[rv$seq], native = TRUE)
-          par(mar = c(5,3,2,2))
-          plot(x = seq(0, 720*1.2, length.out = 1000), 
-               y = seq(0, 540*1.2, length.out = 1000), 
+          par(mar = c(0,0,0,0))
+
+           plot(x = seq(0, dim(img)[2], length.out = 1000), 
+               y = seq(0, dim(img)[1], length.out = 1000), 
                type='n',
                xlab = "",
                ylab = "",
                axes = FALSE,
                frame.plot = TRUE)
-          
-          rasterImage(img,0, 0, 720*1.2, 540*1.2)
+          rasterImage(img,0, 0, dim(img)[2], dim(img)[1])
           
           ## Baseline
-          segments(x0 = structures$bl_x - 50, x1 = structures$bl_x + 50, y0 = structures$bl, y1 = structures$bl,
-                   col = "red",
+          segments(x0 = structures$bl_x - 20, x1 = structures$bl_x + 20, y0 = structures$bl, y1 = structures$bl,
+                   col = cols[1],
                    lwd = 3)
+          
+          text(x = structures$bl_x - 35, y = structures$bl, labels = "BL", col = cols[1],
+               font = 2)
           
           ## Velo
-          segments(x0 = structures$velo_x - 50, x1 = structures$velo_x + 50, y0 = structures$velo, y1 = structures$velo,
-                   col = "purple",
+          segments(x0 = structures$velo_x - 20, x1 = structures$velo_x + 20, y0 = structures$velo, y1 = structures$velo,
+                   col = cols[5],
                    lwd = 3)
+          
+          text(x = structures$velo_x - 35, y = structures$velo, labels = "SC", col = cols[5],
+               font = 2)
           
           ## Peak 1
-          segments(structures$peak1_x - 50, x1 = structures$peak1_x + 50, y0 = structures$peak1, y1 = structures$peak1,
-                   col = "blue",
+          segments(structures$peaks_x[1] - 20, x1 = structures$peaks_x[1] + 20, y0 = structures$peaks[1], y1 = structures$peaks[1],
+                   col = cols[2],
                    lwd = 3)
+          
+          text(x = structures$peaks_x[1] - 35, y = structures$peaks[1], labels = "P1", col = cols[2],
+               font = 2)
           
           ## Peak 2
-          segments(structures$peak2_x - 50, x1 = structures$peak2_x + 50, y0 = structures$peak2, y1 = structures$peak2,
-                   col = "yellow",
+          segments(structures$peaks_x[2] - 20, x1 = structures$peaks_x[2] + 20, y0 = structures$peaks[2], y1 = structures$peaks[2],
+                   col = cols[3],
                    lwd = 3)
+          
+          text(x = structures$peaks_x[2] - 35, y = structures$peaks[2], labels = "P2", col = cols[3],
+               font = 2)
           
           ## Peak 3
-          segments(structures$peak3_x - 50, x1 = structures$peak3_x + 50, y0 = structures$peak3, y1 = structures$peak3,
-                   col = "green",
+          segments(structures$peaks_x[3] - 20, x1 = structures$peaks_x[3] + 20, y0 = structures$peaks[3], y1 = structures$peaks[3],
+                   col = cols[4],
                    lwd = 3)
+          
+          text(x = structures$peaks_x[3] - 35, y = structures$peaks[3], labels = "P3", col = cols[4],
+               font = 2)
           
           ## Trough 1
-          segments(structures$trough1_x - 50, x1 = structures$trough1_x + 50, y0 = structures$trough1, y1 = structures$trough1,
-                   col = "pink",
+          segments(structures$troughs_x[1] - 20, x1 = structures$troughs_x[1] + 20, y0 = structures$troughs[1], y1 = structures$troughs[1],
+                   col = cols[6],
                    lwd = 3)
+          
+          text(x = structures$troughs_x[1] - 35, y = structures$troughs[1], labels = "T1", col = cols[6],
+               font = 2)
           
           ## Trough 2
-          segments(structures$trough2_x - 50, x1 = structures$trough2_x + 50, y0 = structures$trough2, y1 = structures$trough2,
-                   col = "orange",
+          segments(structures$troughs_x[2] - 20, x1 = structures$troughs_x[2] + 20, y0 = structures$troughs[2], y1 = structures$troughs[2],
+                   col = cols[7],
                    lwd = 3)
           
+          text(x = structures$troughs_x[2] - 35, y = structures$troughs[2], labels = "T2", col = cols[7],
+               font = 2)
+          
           ## Trough 3
-          segments(structures$trough3_x - 50, x1 = structures$trough3_x + 50, y0 = structures$trough3, y1 = structures$trough3,
-                   col = "tan",
+          segments(structures$troughs_x[3] - 20, x1 = structures$troughs_x[3] + 20, y0 = structures$troughs[3], y1 = structures$troughs[3],
+                   col = cols[8],
                    lwd = 3)
-        })
+          
+          text(x = structures$troughs_x[3] - 35, y = structures$troughs[3], labels = "T3", col = cols[8],
+               font = 2)
         
+        })
+
       }
  
-  }, width = if(is.null(inFile())){100} else if(rv$seq > nrow(inFile())){100} else{dim(readJPEG(inFile()$datapath[rv$seq]))[2]},
-     height = if(is.null(inFile())){100} else if(rv$seq > nrow(inFile())){100} else{dim(readJPEG(inFile()$datapath[rv$seq]))[1]})
+  }, width = if(is.null(img_dim())){100} else{img_dim()[1]*input$plot_size},
+     height = if(is.null(img_dim())){100} else{img_dim()[2]*input$plot_size})
+  })
+
+
+  # Select metric - switch position of nudge slider ----
+  observeEvent(input$metric_select, {
+    
+    if (input$metric_select == "bl_select"){
+
+      updateSliderInput(session, "nudge", val = structures$bl)
+      
+    } else if (input$metric_select == "velo_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$velo)
+      
+    } else if (input$metric_select == "p1_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$peaks[1])
+      
+    } else if (input$metric_select == "p2_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$peaks[2])
+      
+    } else if (input$metric_select == "p3_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$peaks[3])
+      
+    } else if (input$metric_select == "t1_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$troughs[1])
+      
+    } else if (input$metric_select == "t2_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$troughs[2])
+      
+    } else if (input$metric_select == "t3_select"){
+      
+      updateSliderInput(session, "nudge", val = structures$troughs[3])  
+      
+    }
     
   })
   
-  ## User clicks on image
+  
+  # User clicks on image ----
   observeEvent(input$click, {
     
-    ## Movement of lines depends on selected radio button
-    ## Slider values are updated with click
+    updateSliderInput(session, "nudge", val = input$click$y)
+    
+    # Movement of lines depends on selected radio button
+    # Slider values are updated with click
     if (input$metric_select == "bl_select"){
       
       structures$bl <- input$click$y
       structures$bl_x <- input$click$x
-      updateSliderInput(session, "bl_slider", val = input$click$y)
-      
+
     } else if (input$metric_select == "velo_select"){
       
       structures$velo <- input$click$y
       structures$velo_x <- input$click$x
-      updateSliderInput(session, "velo_slider", val = input$click$y)
     
     } else if (input$metric_select == "p1_select"){
       
-      structures$peak1 <- input$click$y
-      structures$peak1_x <- input$click$x
-      updateSliderInput(session, "p1_slider", val = input$click$y)
+      structures$peaks[1] <- input$click$y
+      structures$peaks_x[1] <- input$click$x
         
     } else if (input$metric_select == "p2_select"){
       
-      structures$peak2 <- input$click$y
-      structures$peak2_x <- input$click$x
-      updateSliderInput(session, "p2_slider", val = input$click$y)
+      structures$peaks[2] <- input$click$y
+      structures$peaks_x[2] <- input$click$x
       
     } else if (input$metric_select == "p3_select"){
       
-      structures$peak3 <- input$click$y
-      structures$peak3_x <- input$click$x
-      updateSliderInput(session, "p3_slider", val = input$click$y)
-      
+      structures$peaks[3] <- input$click$y
+      structures$peaks_x[3] <- input$click$x
+
     } else if (input$metric_select == "t1_select"){
       
-      structures$trough1 <- input$click$y
-      structures$trough1_x <- input$click$x
-      updateSliderInput(session, "t1_slider", val = input$click$y)
-      
+      structures$troughs[1] <- input$click$y
+      structures$troughs_x[1] <- input$click$x
+
     } else if (input$metric_select == "t2_select"){
       
-      structures$trough2 <- input$click$y
-      structures$trough2_x <- input$click$x
-      updateSliderInput(session, "t2_slider", val = input$click$y)
-      
+      structures$troughs[2] <- input$click$y
+      structures$troughs_x[2] <- input$click$x
+
     } else if (input$metric_select == "t3_select"){
       
-      structures$trough3 <- input$click$y
-      structures$trough3_x <- input$click$x
-      updateSliderInput(session, "t3_slider", val = input$click$y)  
-      
+      structures$troughs[3] <- input$click$y
+      structures$troughs_x[3] <- input$click$x
+
     }
       
   })
 
-  ## User moves sliders
-  ## Line moves based on slider choice
-  ## Radio button updates
-  observeEvent(input$p1_slider, {
+  # Update options for metric selection based on beats ----
+  # Also update values of data to NA (removes from plot, and makes NA for data)
+  observeEvent(input$num_beats,
+               ignoreInit = TRUE, {
     
-    structures$peak1 <- input$p1_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "p1_select"
-    )
-    
-  })
-  
-  observeEvent(input$p2_slider, {
-    
-    structures$peak2 <- input$p2_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "p2_select"
-    )
-    
-  })
-  
-  observeEvent(input$p3_slider, {
-    
-    structures$peak3 <- input$p3_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "p3_select"
-    )
-    
-  })
-  
-  
-  observeEvent(input$t1_slider, {
-    
-    structures$trough1 <- input$t1_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "t1_select"
-    )
-    
-  })
-  
-  observeEvent(input$t2_slider, {
-    
-    structures$trough2 <- input$t2_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "t2_select"
-    )
+    if (input$num_beats == 1){
+      
+      updateSelectInput(session,
+                        inputId = "metric_select", 
+                        label = "Select a Metric",
+                        choices = c("Baseline" = "bl_select",
+                                    "Scale" = "velo_select",
+                                    "Peak 1" = "p1_select",
+                                    "Trough 1" = "t1_select"),
+                        selected = "bl_select"
+      ) 
+      
+      structures$peaks[2] <- NA
+      structures$peaks[3] <- NA
+      structures$troughs[2] <- NA
+      structures$troughs[3] <- NA
+      
+    } else if (input$num_beats == 2){
+      
+      updateSelectInput(session,
+                        inputId = "metric_select", 
+                        label = "Select a Metric",
+                        choices = c("Baseline" = "bl_select",
+                                    "Scale" = "velo_select",
+                                    "Peak 1" = "p1_select",
+                                    "Peak 2" = "p2_select",
+                                    "Trough 1" = "t1_select",
+                                    "Trough 2" = "t2_select"),
+                        selected = "bl_select"
+      ) 
+      
+      structures$peaks[3] <- NA
+      structures$troughs[3] <- NA
+
+      if (is.na(structures$peaks[2])){
+        structures$peaks[2] <- img_dim()[2] - 10
+        structures$peaks_x[2] <- 275
+      }
+      
+      if (is.na(structures$troughs[2])){
+        structures$troughs[2] <- img_dim()[2] - 30
+        structures$troughs_x[2] <- 200
+      }
+      
+    } else if (input$num_beats == 3){
+      
+      updateSelectInput(session,
+                        inputId = "metric_select", 
+                        label = "Select a Metric",
+                        choices = c("Baseline" = "bl_select",
+                                    "Scale" = "velo_select",
+                                    "Peak 1" = "p1_select",
+                                    "Peak 2" = "p2_select",
+                                    "Peak 3" = "p3_select",
+                                    "Trough 1" = "t1_select",
+                                    "Trough 2" = "t2_select",
+                                    "Trough 3" = "t3_select"),
+                        selected = "bl_select")
+      
+      if (is.na(structures$peaks[2])){
+        structures$peaks[2] <- img_dim()[2] - 10
+        structures$peaks_x[2] <- 275
+      }
+      
+      if (is.na(structures$troughs[2])){
+        structures$troughs[2] <- img_dim()[2] - 30
+        structures$troughs_x[2] <- 200
+      }
+      
+      if (is.na(structures$peaks[3])){
+        structures$peaks[3] <- img_dim()[2] - 30
+        structures$peaks_x[3] <- 50
+      }
+      
+      if (is.na(structures$troughs[3])){
+        structures$troughs[3] <- img_dim()[2] - 30
+        structures$troughs_x[3] <- 275
+      }
+      
+    }
     
   })
   
-  observeEvent(input$t3_slider, {
+  # Set data values to NA if image is unmeasurable ----
+  observeEvent(input$cant_read,
+               ignoreInit = TRUE, {
     
-    structures$trough3 <- input$t3_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "t3_select"
-    )
-    
-  })
-  
-  observeEvent(input$velo_slider, {
-    
-    structures$velo <- input$velo_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "velo_select"
-    )
-    
-  })
-  
-  observeEvent(input$bl_slider, {
-    
-    structures$bl <- input$bl_slider
-    updateSelectInput(session,
-                      inputId = "metric_select", 
-                      label = "Select a Metric to Move",
-                      choices = c("Baseline" = "bl_select",
-                                  "Scale" = "velo_select",
-                                  "Peak 1" = "p1_select",
-                                  "Peak 2" = "p2_select",
-                                  "Peak 3" = "p3_select",
-                                  "Trough 1" = "t1_select",
-                                  "Trough 2" = "t2_select",
-                                  "Trough 3" = "t3_select"),
-                      selected = "bl_select"
-    )
+    if (input$cant_read == 1){
+      
+      structures$bl <- NA
+      structures$velo <- NA
+      structures$peaks <- rep(NA, 3)
+      structures$troughs <- rep(NA, 3)
+      
+      rv$data[rv$seq, ] <- c("image_id" = file_name()[rv$seq], 
+                             "date_time_submit" = format(Sys.time(), "%Y_%m_%d_%H%M"),
+                             "anesthesiologist_measuring" = input$reader,
+                             "image_unmeasurable" = input$cant_read,
+                             "num_beats" = NA,
+                             "dicrotic_notch" = NA,
+                             "rounded_envelope" = NA,
+                             "flat_diastole" = NA,
+                             "baseline" = structures$bl,
+                             "scale" = structures$velo,
+                             "velo_num" = input$velo_num,
+                             "peak_1" = structures$peaks[1],
+                             "peak_2" = structures$peaks[2],
+                             "peak_3" = structures$peaks[3],
+                             "trough_1" = structures$troughs[1],
+                             "trough_2" = structures$troughs[2],
+                             "trough_3" = structures$troughs[3],
+                             "rri_1" = NA,
+                             "rri_2" = NA,
+                             "rri_3" = NA)
+      
+    } else {
+      
+      structures$bl <- img_dim()[2] - 10
+      structures$velo <- img_dim()[2] - 10
+      structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
+      structures$troughs <- rep(img_dim()[2] - 30, 3)
+      structures$bl_x <- 50
+      structures$velo_x <- 125
+      structures$peaks_x <- c(200, 275, 50)
+      structures$troughs_x <- c(125, 200, 275)
+      
+    }
     
   })
 
-  ## Conditional Panel for uploaded file
+  # User moves marker nudge slider ----
+  observeEvent(input$nudge, {
+    
+    ##Movement of lines depends on selected radio button
+    # Slider values are updated with click
+    if (input$metric_select == "bl_select"){
+      
+      structures$bl <- input$nudge
 
+    } else if (input$metric_select == "velo_select"){
+      
+      structures$velo <- input$nudge
+
+    } else if (input$metric_select == "p1_select"){
+      
+      structures$peaks[1] <- input$nudge
+
+    } else if (input$metric_select == "p2_select"){
+      
+      structures$peaks[2] <- input$nudge
+
+    } else if (input$metric_select == "p3_select"){
+      
+      structures$peaks[3] <- input$nudge
+
+    } else if (input$metric_select == "t1_select"){
+      
+      structures$troughs[1] <- input$nudge
+
+    } else if (input$metric_select == "t2_select"){
+      
+      structures$troughs[2] <- input$nudge
+
+    } else if (input$metric_select == "t3_select"){
+      
+      structures$troughs[3] <- input$nudge
+      
+    }
+    
+  })
+  
+  # Conditional Panel for uploaded file ----
   output$fileUploaded <- reactive({
     
     return(!is.null(inFile()) & (!rv$seq > image_total()))
     
   })
   
+  # Conditional Panel for action button when finished ----
+  output$done <- reactive({
+    
+    return(!is.null(inFile()) & (rv$seq > image_total()))
+    
+  })
+  
+  # Conditional Panel for action button when no files uploaded ----
+  output$no_upload <- reactive({
+    
+    return(is.null(inFile()))
+    
+  })
+  
+  # Check passcode for text output ----
+  pass <- reactiveValues(x = "<b><i><font color = red>Please enter a passcode.</b></i></font>")
+  
+  output$pass_text <- renderText(pass$x)
+
+  observeEvent(input$check_pass, {
+    
+    if (input$passcode == dbMasterPassword){
+      pass$x <- "<b><i><font color = red>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
+    } else if (input$passcode != dbMasterPassword){
+      pass$x <- "<b><i><font color = red>Incorrect passcode.<br>Data will not be uploaded to the database.</b></i></font>"
+    }
+  })
+  
+  # Pull data from database to compare uploaded file IDs ----
+  observeEvent(input$files, {
+    
+    db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
+                    port = dbPort, user = dbUser, 
+                    password = dbMasterPassword)
+    
+    dbData <- dbGetQuery(db, "SELECT image_id FROM rri_reads")
+    
+    dbDisconnect(db)
+    
+    if (any(is.na(as.numeric(file_name())))) {
+      
+      wrong <- file_name()[is.na(as.numeric(file_name()))]
+
+      title = "Non-Numeric Image ID"
+      message = HTML(paste("<b><i><font color = red>The following uploaded ", 
+                           "images are named improperly: ", 
+                           paste(wrong, collapse = ", "),
+                           "<br>Please reupload images with a valid study ",
+                           "image ID.</b></i></font>"))
+      
+      showModal(modalDialog(
+        title = "Non-Numeric Image ID",
+        message,
+        easyClose = FALSE,
+        fade = TRUE,
+        size = "m"
+      ))
+      
+    } else if (any(as.numeric(file_name()) %in% as.numeric(dbData$image_id))){
+    
+      dups <- file_name()[as.numeric(file_name()) %in% as.numeric(dbData$image_id)]
+
+      if (length(dups) > 1){
+        title <- "Possible Duplicate Images"
+        message <- HTML(paste("<b><i><font color = red>The following images already have data ",
+                              "in the central database: ",
+                              paste(dups, collapse = ", "), 
+                              ".</b></i></font>", sep = ""))
+      } else {
+        title <- "Possible Duplicate Image" 
+        message <- HTML(paste("<b><i><font color = red>The following image already has data ",
+                              "in the central database: ",
+                              paste(dups, collapse = ", "), 
+                              ".</b></i></font>", sep = ""))
+      }
+      
+      showModal(modalDialog(
+        title = title,
+        message,
+        easyClose = FALSE,
+        fade = TRUE,
+        size = "m"
+      ))
+      
+    }
+    
+  })
+  
+  # Conditional Panel for download button when read one or more images ----
+  output$downloadReady <- reactive({
+    
+    return(!is.null(inFile()) & (rv$seq > 1))
+    
+  })
+  
   outputOptions(output, 'fileUploaded', suspendWhenHidden=FALSE)
+  outputOptions(output, 'done', suspendWhenHidden=FALSE)
+  outputOptions(output, 'downloadReady', suspendWhenHidden=FALSE)
+  outputOptions(output, 'no_upload', suspendWhenHidden=FALSE)
+  
+  # Generate url for link to index
+  return_link <- a("Return to RRI Dashboard",
+                   href="http://ec2-54-208-135-117.compute-1.amazonaws.com:3838")
+  
+  output$link <- renderUI({return_link})
+  output$link_2 <- renderUI({return_link})
+  
 }
 
-
-# Run the application 
+# Run the application ----
 shinyApp(ui = ui, server = server)
 
