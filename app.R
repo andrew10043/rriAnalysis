@@ -15,7 +15,8 @@ cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
           "#FF6900", "#FF00EB", "#00F7FF", "#FFFFFF",
           "#000000", "#8B888A")
 
-ui <- shinyUI(
+ui <- bootstrapPage(
+  shinyUI(
 
   # Initialize navbar page ---- 
   navbarPage(
@@ -99,9 +100,9 @@ ui <- shinyUI(
              useShinyjs(),
              
              tags$head(tags$style(
-               HTML('body, label, input, button, select { 
+               HTML('body, label, button, select { 
                     font-family: "Avenir";
-                    font-size:10px;
+                    font-size:9.5px;
                     }')
                
                )),
@@ -163,60 +164,77 @@ ui <- shinyUI(
                      )
             ),
 
-            # Metric Sliders ----
+            # Questions and Metric Sliders ----
+            tags$head(
+              tags$style(
+                ".selectize-input {
+                 height: 25px; font-size: 9px;
+                 max-height: 25px; min-height: 25px;
+                 line-height: 12.5px;
+                }"
+              ),
+              tags$style(
+                ".selectize-dropdown {
+                line-height: 12.5px; font-size: 9px;
+                }"
+              ),
+              tags$style(
+                "#heart_rate, #velo_num {height: 25px; font-size: 9px}"
+              )
+            ),
+            
             fluidRow(
               column(5,
-                     radioButtons("flat_diastole", "Diastole Flat?",
-                                  choices = c('No' = 0,
-                                              'Yes' = 1),
-                                  selected = character(0),
-                                  inline = TRUE),
+                     selectInput("flat_diastole", "Diastole Flat?",
+                                 choices = c(" " = 999,
+                                             'No' = 0,
+                                             'Yes' = 1),
+                                  selected = 999),
                      
-                     radioButtons("dicrotic", "Dicrotic Notch?",
-                                  choices = c('No' = 0,
+                     selectInput("dicrotic", "Dicrotic Notch?",
+                                  choices = c(" " = 999,
+                                              'No' = 0,
                                               'Yes' = 1),
-                                  selected = character(),
-                                  inline = TRUE),
+                                  selected = 999),
                      
-                     radioButtons("rounded", "Envelopes Rounded?",
-                                  choices = c('No' = 0,
+                     selectInput("rounded", "Envelopes Rounded?",
+                                  choices = c(" " = 999,
+                                              'No' = 0,
                                               'Yes' = 1),
-                                  selected = character(0),
-                                  inline = TRUE)
+                                  selected = 999)
               ),
               
               column(7, 
-                     radioButtons(inputId = "strip_speed",
-                                  label = "What is the speed (mm/s)?",
-                                  choices = c("50" = 50,
-                                              "75" = 75,
-                                              "100" = 100,
-                                              "125" = 125),
-                                  selected = character(0), 
-                                  inline = TRUE),
+                     selectInput(inputId = "strip_speed",
+                                 label = "What is the speed (mm/s)?",
+                                 choices = c(" " = 999,
+                                             "50" = 50,
+                                             "75" = 75,
+                                             "100" = 100,
+                                             "125" = 125),
+                                 selected = 999),
                      
-                     radioButtons(inputId = "paced",
+                     selectInput(inputId = "paced",
                                   label = "Paced Rhythm?",
-                                  choices = c("Yes" = 1,
+                                  choices = c(" " = 999,
+                                              "Yes" = 1,
                                               "No" = 2,
                                               "Unclear" = 3),
-                                  selected = character(0), 
-                                  inline = TRUE),
+                                  selected = 999),
                      
-                     radioButtons(inputId = "rhythm",
-                                  label = "Regular Rhythm?",
-                                  choices = c("Yes" = 1,
-                                              "No" = 2,
-                                              "Unclear" = 3),
-                                  selected = character(0), 
-                                  inline = TRUE)
+                     selectInput(inputId = "rhythm",
+                                 label = "Regular Rhythm?",
+                                 choices = c(" " = 999,
+                                             "Yes" = 1,
+                                             "No" = 2,
+                                             "Unclear" = 3),
+                                  selected = 999)
               )
               
             ),
             
-            # Metric selection dropdown menu ----
             selectInput(inputId = "metric_select", 
-                        label = "Select a Metric to Move",
+                        label = "Select a Metric",
                         choices = c("Baseline" = "bl_select",
                                     "Scale" = "velo_select",
                                     "Peak 1" = "p1_select",
@@ -226,7 +244,7 @@ ui <- shinyUI(
                                     "Peak 3" = "p3_select",
                                     "Trough 3" = "t3_select"),
                         selected = "bl_select"),
-            
+
             # Metric Sliders ----
             fluidRow(
               column(4,
@@ -361,9 +379,9 @@ ui <- shinyUI(
    )
    )
   )
+)
 
 server <- function(input, output, session) {
-  
   
   # Logo output ----
   output$logo <- renderImage({
@@ -524,7 +542,7 @@ server <- function(input, output, session) {
   
   output$current_metric <- renderText({
     
-    paste("<b><font size = 2 px><font color = black>",
+    paste("<b><font size = 1 px><font color = black>",
           "Metric Toggle:<br></font><font size = 2><font color = red>", 
           metric(), "</b></font>",
           sep = "")
@@ -553,19 +571,17 @@ server <- function(input, output, session) {
                 is.null(input$strip_speed),
                 (structures$bl == img_dim()[2] - 10) & (!is.na(structures$bl)),
                 (structures$velo == img_dim()[2] - 10) & (!is.na(structures$velo)),
-                (((structures$peaks[1] == img_dim()[2] - 10) |
-                  (structures$peaks[2] == img_dim()[2] - 10) |
-                  (structures$peaks[3] == img_dim()[2] - 30)) &
-                all(!is.na(structures$peaks))),
-                (((structures$troughs[1] == img_dim()[2] - 30) |
-                    (structures$troughs[2] == img_dim()[2] - 30) |
-                    (structures$troughs[3] == img_dim()[2] - 30)) &
-                   all(!is.na(structures$troughs))),
-                is.null(input$dicrotic),
-                is.null(input$envelopes),
-                is.null(input$flat_diastole),
-                is.null(input$rhythm),
-                is.null(input$paced)
+                (structures$peaks[1] == img_dim()[2] - 10) & (!is.na(structures$peaks[1])) |
+                  (structures$peaks[2] == img_dim()[2] - 10) & (!is.na(structures$peaks[2])) |
+                  (structures$peaks[3] == img_dim()[2] - 30) & (!is.na(structures$peaks[3])),
+                (structures$troughs[1] == img_dim()[2] - 30) & (!is.na(structures$troughs[1])) |
+                    (structures$troughs[2] == img_dim()[2] - 30) & (!is.na(structures$troughs[2])) |
+                    (structures$troughs[3] == img_dim()[2] - 30) & (!is.na(structures$troughs[3])),
+                input$dicrotic == 999,
+                input$rounded == 999,
+                input$flat_diastole == 999,
+                input$rhythm == 999,
+                input$paced == 999
                 )
     
     if (input$cant_read == 1){
@@ -596,19 +612,20 @@ server <- function(input, output, session) {
     # Reset velo_num ----
     updateNumericInput(session,
                        inputId = "velo_num", 
-                       label = "What velocity (cm/s) is marked by the scale icon?", 
+                       label = "What velocity is marked on the scale?", 
                        value = 0)
       
     # Reset heart_rate ----
-    numericInput(inputId = "heart_rate", 
-                 label = "What is the heart rate?", 
-                 value = 0)
+    updateNumericInput(session,
+                       inputId = "heart_rate", 
+                       label = "What is the heart rate?", 
+                       value = 0)
       
     # Reset radio buttons ----
     updateRadioButtons(session, inputId = "cant_read",
-                       label = "Is the image un-measurable?",
-                       choices = c("No" = 0,
-                                   "Yes" = 1),
+                       label = "Is the image measurable?",
+                       choices = c("No" = 1,
+                                   "Yes" = 0),
                        selected = 0,
                        inline = TRUE
                        )
@@ -622,10 +639,56 @@ server <- function(input, output, session) {
                        inline = TRUE
                        )
     
+    updateSelectInput(session, "flat_diastole", 
+                      "Diastole Flat?",
+                      choices = c(" " = 999,
+                                  'No' = 0,
+                                  'Yes' = 1),
+                selected = 999)
+    
+    updateSelectInput(session, "dicrotic", 
+                      "Dicrotic Notch?",
+                      choices = c(" " = 999,
+                                  'No' = 0,
+                                  'Yes' = 1),
+                      selected = 999)
+    
+    updateSelectInput(session, "rounded", 
+                      "Envelopes Rounded?",
+                      choices = c(" " = 999,
+                                  'No' = 0,
+                                  'Yes' = 1),
+                      selected = 999)
+    
+    updateSelectInput(session, inputId = "strip_speed",
+                      label = "What is the speed (mm/s)?",
+                      choices = c(" " = 999,
+                                  "50" = 50,
+                                  "75" = 75,
+                                  "100" = 100,
+                                  "125" = 125),
+                      selected = 999)
+    
+    updateSelectInput(session, inputId = "paced",
+                      label = "Paced Rhythm?",
+                      choices = c(" " = 999,
+                                  "Yes" = 1,
+                                  "No" = 2,
+                                  "Unclear" = 3),
+                      selected = 999)
+    
+    updateSelectInput(session, inputId = "rhythm",
+                      label = "Regular Rhythm?",
+                      choices = c(" " = 999,
+                                  "Yes" = 1,
+                                  "No" = 2,
+                                  "Unclear" = 3),
+                      selected = 999)
+    
     # Reset metric selection ----
     updateSelectInput(session,
                       inputId = "metric_select", 
-                      label = "Select a Metric to Move",
+                      label = "Select a Metric",
                       choices = c("Baseline" = "bl_select",
                                   "Scale" = "velo_select",
                                   "Peak 1" = "p1_select",
@@ -701,6 +764,94 @@ server <- function(input, output, session) {
       
       dbGetQuery(db, query)
       dbDisconnect(db)
+      
+      # Save image
+      png(filename = paste("/srv/shiny-server/rri_app/data/readImages/", 
+                           file_name()[rv$seq], 
+                           "_", input$reader, "_", 
+                           format(Sys.time(), "%Y_%m_%d_%H%M"), 
+                           ".png", sep = ""),
+          width = img_dim()[1],
+          height = img_dim()[2])
+      {
+        img <- readJPEG(inFile()$datapath[rv$seq], native = TRUE)
+        par(mar = c(0,0,0,0))
+        
+        plot(x = seq(0, dim(img)[2], length.out = 1000), 
+             y = seq(0, dim(img)[1], length.out = 1000), 
+             type='n',
+             xlab = "",
+             ylab = "",
+             axes = FALSE,
+             frame.plot = TRUE)
+        rasterImage(img,0, 0, dim(img)[2], dim(img)[1])
+        
+        ## Baseline
+        segments(x0 = structures$bl_x - 20, x1 = structures$bl_x + 20, y0 = structures$bl, y1 = structures$bl,
+                 col = cols[1],
+                 lwd = 3)
+        
+        text(x = structures$bl_x - 35, y = structures$bl, labels = "BL", col = cols[1],
+             font = 2)
+        
+        ## Velo
+        segments(x0 = structures$velo_x - 20, x1 = structures$velo_x + 20, y0 = structures$velo, y1 = structures$velo,
+                 col = cols[5],
+                 lwd = 3)
+        
+        text(x = structures$velo_x - 35, y = structures$velo, labels = "SC", col = cols[5],
+             font = 2)
+        
+        ## Peak 1
+        segments(structures$peaks_x[1] - 20, x1 = structures$peaks_x[1] + 20, y0 = structures$peaks[1], y1 = structures$peaks[1],
+                 col = cols[2],
+                 lwd = 3)
+        
+        text(x = structures$peaks_x[1] - 35, y = structures$peaks[1], labels = "P1", col = cols[2],
+             font = 2)
+        
+        ## Peak 2
+        segments(structures$peaks_x[2] - 20, x1 = structures$peaks_x[2] + 20, y0 = structures$peaks[2], y1 = structures$peaks[2],
+                 col = cols[3],
+                 lwd = 3)
+        
+        text(x = structures$peaks_x[2] - 35, y = structures$peaks[2], labels = "P2", col = cols[3],
+             font = 2)
+        
+        ## Peak 3
+        segments(structures$peaks_x[3] - 20, x1 = structures$peaks_x[3] + 20, y0 = structures$peaks[3], y1 = structures$peaks[3],
+                 col = cols[4],
+                 lwd = 3)
+        
+        text(x = structures$peaks_x[3] - 35, y = structures$peaks[3], labels = "P3", col = cols[4],
+             font = 2)
+        
+        ## Trough 1
+        segments(structures$troughs_x[1] - 20, x1 = structures$troughs_x[1] + 20, y0 = structures$troughs[1], y1 = structures$troughs[1],
+                 col = cols[6],
+                 lwd = 3)
+        
+        text(x = structures$troughs_x[1] - 35, y = structures$troughs[1], labels = "T1", col = cols[6],
+             font = 2)
+        
+        ## Trough 2
+        segments(structures$troughs_x[2] - 20, x1 = structures$troughs_x[2] + 20, y0 = structures$troughs[2], y1 = structures$troughs[2],
+                 col = cols[7],
+                 lwd = 3)
+        
+        text(x = structures$troughs_x[2] - 35, y = structures$troughs[2], labels = "T2", col = cols[7],
+             font = 2)
+        
+        ## Trough 3
+        segments(structures$troughs_x[3] - 20, x1 = structures$troughs_x[3] + 20, y0 = structures$troughs[3], y1 = structures$troughs[3],
+                 col = cols[8],
+                 lwd = 3)
+        
+        text(x = structures$troughs_x[3] - 35, y = structures$troughs[3], labels = "T3", col = cols[8],
+             font = 2)
+        
+      }
+      dev.off()
       
     }
     
@@ -803,7 +954,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -819,7 +970,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -835,7 +986,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -851,7 +1002,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -867,7 +1018,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -883,7 +1034,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -899,7 +1050,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -915,7 +1066,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -935,7 +1086,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -949,7 +1100,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -963,7 +1114,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -977,7 +1128,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -991,7 +1142,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1005,7 +1156,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1023,7 +1174,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1035,7 +1186,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1047,7 +1198,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1059,7 +1210,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1083,7 +1234,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1099,7 +1250,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1115,7 +1266,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1131,7 +1282,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1147,7 +1298,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1163,7 +1314,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1179,7 +1330,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1195,7 +1346,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1215,7 +1366,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1229,7 +1380,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1243,7 +1394,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1257,7 +1408,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1271,7 +1422,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1285,7 +1436,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1303,7 +1454,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1315,7 +1466,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1327,7 +1478,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1339,7 +1490,7 @@ server <- function(input, output, session) {
         
         updateSelectInput(session,
                           inputId = "metric_select", 
-                          label = "Select a Metric to Move",
+                          label = "Select a Metric",
                           choices = c("Baseline" = "bl_select",
                                       "Scale" = "velo_select",
                                       "Peak 1" = "p1_select",
@@ -1385,12 +1536,12 @@ server <- function(input, output, session) {
                       value = img_dim()[2] - 10)
     
   })
+ 
   
   # Image generation ----
   observe({
     
     output$image <- renderPlot({
-
       
       if (is.null(inFile())){
         
@@ -1405,14 +1556,14 @@ server <- function(input, output, session) {
         return({
           img <- readJPEG(inFile()$datapath[rv$seq], native = TRUE)
           par(mar = c(0,0,0,0))
-          plot(x = seq(0, dim(img)[2], length.out = 1000), 
+
+           plot(x = seq(0, dim(img)[2], length.out = 1000), 
                y = seq(0, dim(img)[1], length.out = 1000), 
                type='n',
                xlab = "",
                ylab = "",
                axes = FALSE,
                frame.plot = TRUE)
-          
           rasterImage(img,0, 0, dim(img)[2], dim(img)[1])
           
           ## Baseline
@@ -1478,16 +1629,16 @@ server <- function(input, output, session) {
           
           text(x = structures$troughs_x[3] - 35, y = structures$troughs[3], labels = "T3", col = cols[8],
                font = 2)
-        })
         
+        })
+
       }
  
   }, width = if(is.null(img_dim())){100} else{img_dim()[1]*input$plot_size},
      height = if(is.null(img_dim())){100} else{img_dim()[2]*input$plot_size})
   })
 
-  
-  
+
   # Select metric - switch position of nudge slider ----
   observeEvent(input$metric_select, {
     
@@ -1581,13 +1732,14 @@ server <- function(input, output, session) {
 
   # Update options for metric selection based on beats ----
   # Also update values of data to NA (removes from plot, and makes NA for data)
-  observeEvent(input$num_beats, {
+  observeEvent(input$num_beats,
+               ignoreInit = TRUE, {
     
     if (input$num_beats == 1){
       
       updateSelectInput(session,
                         inputId = "metric_select", 
-                        label = "Select a Metric to Move",
+                        label = "Select a Metric",
                         choices = c("Baseline" = "bl_select",
                                     "Scale" = "velo_select",
                                     "Peak 1" = "p1_select",
@@ -1604,7 +1756,7 @@ server <- function(input, output, session) {
       
       updateSelectInput(session,
                         inputId = "metric_select", 
-                        label = "Select a Metric to Move",
+                        label = "Select a Metric",
                         choices = c("Baseline" = "bl_select",
                                     "Scale" = "velo_select",
                                     "Peak 1" = "p1_select",
@@ -1616,12 +1768,22 @@ server <- function(input, output, session) {
       
       structures$peaks[3] <- NA
       structures$troughs[3] <- NA
+
+      if (is.na(structures$peaks[2])){
+        structures$peaks[2] <- img_dim()[2] - 10
+        structures$peaks_x[2] <- 275
+      }
+      
+      if (is.na(structures$troughs[2])){
+        structures$troughs[2] <- img_dim()[2] - 30
+        structures$troughs_x[2] <- 200
+      }
       
     } else if (input$num_beats == 3){
       
       updateSelectInput(session,
                         inputId = "metric_select", 
-                        label = "Select a Metric to Move",
+                        label = "Select a Metric",
                         choices = c("Baseline" = "bl_select",
                                     "Scale" = "velo_select",
                                     "Peak 1" = "p1_select",
@@ -1630,14 +1792,35 @@ server <- function(input, output, session) {
                                     "Trough 1" = "t1_select",
                                     "Trough 2" = "t2_select",
                                     "Trough 3" = "t3_select"),
-                        selected = "bl_select"
-      ) 
+                        selected = "bl_select")
+      
+      if (is.na(structures$peaks[2])){
+        structures$peaks[2] <- img_dim()[2] - 10
+        structures$peaks_x[2] <- 275
+      }
+      
+      if (is.na(structures$troughs[2])){
+        structures$troughs[2] <- img_dim()[2] - 30
+        structures$troughs_x[2] <- 200
+      }
+      
+      if (is.na(structures$peaks[3])){
+        structures$peaks[3] <- img_dim()[2] - 30
+        structures$peaks_x[3] <- 50
+      }
+      
+      if (is.na(structures$troughs[3])){
+        structures$troughs[3] <- img_dim()[2] - 30
+        structures$troughs_x[3] <- 275
+      }
+      
     }
     
   })
   
   # Set data values to NA if image is unmeasurable ----
-  observeEvent(input$cant_read, {
+  observeEvent(input$cant_read,
+               ignoreInit = TRUE, {
     
     if (input$cant_read == 1){
       
@@ -1666,6 +1849,17 @@ server <- function(input, output, session) {
                              "rri_1" = NA,
                              "rri_2" = NA,
                              "rri_3" = NA)
+      
+    } else {
+      
+      structures$bl <- img_dim()[2] - 10
+      structures$velo <- img_dim()[2] - 10
+      structures$peaks <- c(img_dim()[2] - 10, img_dim()[2] - 10, img_dim()[2] - 30)
+      structures$troughs <- rep(img_dim()[2] - 30, 3)
+      structures$bl_x <- 50
+      structures$velo_x <- 125
+      structures$peaks_x <- c(200, 275, 50)
+      structures$troughs_x <- c(125, 200, 275)
       
     }
     
