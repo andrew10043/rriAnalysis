@@ -1,12 +1,12 @@
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 from analytic_wfm import peakdetect
+from RRITaggedImage import *
 
 class RRITagger:
 
     def __init__(self):
-        self.name = "test"
+        self.name = ""
 
     def tag_image(self, name):
         image = cv2.imread(name, 0)
@@ -17,37 +17,9 @@ class RRITagger:
                                                  contours, baseline)
         peaks = self.find_peaks(filtered_contours)
 
-        # Generate Plot
-        x_coords = np.append(filtered_contours[:, 0], peaks[:, 0])
-        y_coords = np.append(filtered_contours[:, 1], peaks[:, 1])
-
-        marker_style = (["."] * len(filtered_contours)) + \
-                       (["+"] * (len(x_coords) - len(filtered_contours)))
-
-        marker_size = ([30] * len(filtered_contours)) + \
-                      ([150] * (len(x_coords) - len(filtered_contours)))
-
-        marker_color = (["b"] * len(filtered_contours)) + \
-                       (["r"] * (len(x_coords) - len(filtered_contours)))
-
-        marker_width = ([0.5] * len(filtered_contours)) + \
-                       ([4] * (len(x_coords) - len(filtered_contours)))
-
-        marker_alpha = ([0.75] * len(filtered_contours)) + \
-                       ([1] * (len(x_coords) - len(filtered_contours)))
-
-        plt.imshow(image, cmap="gray")
-        for _m, c, _x, _y, _z, _l, _a in zip(marker_style, marker_color,
-                                             x_coords, y_coords,
-                                             marker_size, marker_width,
-                                             marker_alpha):
-            plt.scatter(_x, _y, marker=_m, c=c, s=_z,
-                        linewidths=_l, alpha=_a)
-
-        plt.axhline(y=baseline, color='r', linestyle='-')
-        plt.xticks([]), plt.yticks([])
-
-        plt.show()
+        return RRITaggedImage(image=image, baseline=baseline,
+                              contours=filtered_contours,
+                              peaks=peaks)
 
     def pre_process(self, image):
         """
