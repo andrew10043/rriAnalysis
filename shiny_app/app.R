@@ -5,10 +5,10 @@ library(jpeg)
 library(RMySQL)
 
 # Source authentication information for MySQL database ----
-source("db.R")
+source("R/db.R")
 
 # Source functions ----
-source("functions.R")
+source("R/functions.R")
 
 # Formatting Parameters ----
 cols <- c("#FF0000", "#000CFF", "#00FF28", "#F7FF00",
