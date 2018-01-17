@@ -1,2 +1,9 @@
-# rriAnalysis
-A Shiny application developed for analysis of static Doppler waveforms of renal blood flow. Utilized for research purposes only.
+# Renal Resistive Index (RRI) Analysis
+
+## Repository Contents:
+- *app.R* - Shiny web-based application for interactive analysis of the
+renal resistive index for research purposes.
+- **RRITagger** - Python (OpenCV) algorithm for processing of static RRI images and
+automatic identification of Doppler wave peaks and troughs
+  - *RRITagger.py* - automated RRI algorithm
+  - *main.py* - proof of concept for single RRI image
