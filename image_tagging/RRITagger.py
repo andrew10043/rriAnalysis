@@ -17,7 +17,8 @@ class RRITagger:
                                                  contours, baseline)
         peaks = self.find_peaks(filtered_contours)
 
-        return RRITaggedImage(image=image, baseline=baseline,
+        return RRITaggedImage(image=image, processed_image=processed_image,
+                              baseline=baseline,
                               contours=filtered_contours,
                               peaks=peaks)
 

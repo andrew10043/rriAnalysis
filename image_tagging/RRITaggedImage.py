@@ -4,8 +4,9 @@ from matplotlib import pyplot as plt
 
 class RRITaggedImage:
 
-    def __init__(self, image, baseline, contours, peaks):
+    def __init__(self, image, processed_image, baseline, contours, peaks):
         self.image = image
+        self.processed_image = processed_image,
         self.baseline = baseline
         self.contours = contours
         self.peaks = peaks
