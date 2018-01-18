@@ -1,3 +1,9 @@
+"""
+Class RRITaggedImage
+
+Methods utilized to further analyze a tagged image (i.e. plotting).
+"""
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -20,11 +26,12 @@ class RRITaggedImage:
 
         Parameters
         ----------
-        empty
+        None.
 
         Returns
         -------
-        empty
+        No direct return; must be followed by plt.show() to display plot if
+        desired.
         """
 
         contours_length = len(self.contours)
@@ -56,4 +63,3 @@ class RRITaggedImage:
         plt.axhline(y=self.baseline, color='r', linestyle='-')
         plt.xticks([]), plt.yticks([])
 
-        #plt.show()

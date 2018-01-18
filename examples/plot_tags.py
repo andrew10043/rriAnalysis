@@ -33,8 +33,10 @@ tagger = RRITagger()
 
 # Call tag_image method on two images (one with waves above baseline and one
 # with waves below baseline)
-taggedImage_up = tagger.tag_image(name="images/01_original.jpg")
-taggedImage_down = tagger.tag_image(name="images/05_original.jpg")
+taggedImage_up = tagger.tag_image(name="images/01_original.jpg",
+                                  bl_diff=60, lookahead=50, delta=50)
+taggedImage_down = tagger.tag_image(name="images/05_original.jpg",
+                                    bl_diff=60, lookahead=50, delta=50)
 
 # Generate figure with 2x3 row/column structure showing (1) original grayscale
 # images; (2) pre-processed images and (3) final tagged imges

@@ -1,3 +1,11 @@
+"""
+Class RRITagger
+
+A collection of methods utilized in processing static renal Doppler waveforms
+to assess the renal resistive index (RRI).
+"""
+
+
 import cv2
 import numpy as np
 from analytic_wfm import peakdetect
@@ -8,14 +16,40 @@ class RRITagger:
     def __init__(self):
         self.name = ""
 
-    def tag_image(self, name):
+    def tag_image(self, name, bl_diff=60, lookahead=50, delta=50):
+        """
+        Fully process a static RRI image.
+
+        Parameters
+        ----------
+        name : string
+            File path to static renal Doppler image.
+
+        bl_diff : int | default = 60
+            Distance (in pixels) from baseline to first contours.
+
+        lookahead : int | default = 50
+            Distance (in pixels) to lookahead when assessing peak/trough
+            validity.
+
+        delta : int | default = 50
+            Minimum difference between peak/trough and surrounding points to
+            be considered a valid peak/trough.
+
+        Returns
+        -------
+        RRITaggedImage : object of class RRITaggedImage
+            Contains original image, processed image,
+            baseline value, filtered contours and identified peaks/troughs.
+        """
         image = cv2.imread(name, 0)
         baseline = self.find_baseline(image)
         processed_image = self.pre_process(image)
         contours = self.find_contours(processed_image)
         filtered_contours = self.filter_contours(processed_image,
-                                                 contours, baseline)
-        peaks = self.find_peaks(filtered_contours)
+                                                 contours, baseline,
+                                                 bl_diff)
+        peaks = self.find_peaks(filtered_contours, lookahead, delta)
 
         return RRITaggedImage(image=image, processed_image=processed_image,
                               baseline=baseline,
@@ -75,7 +109,7 @@ class RRITagger:
 
         return int((y1 + y2) / 2)
 
-    def find_contours(self, image):
+    def find_contours(self, processed_image):
         """
         Identify contours of pre-processed image.
 
@@ -89,12 +123,14 @@ class RRITagger:
         contours : list of arrays
             A list of all contours, stored as n x 2 arrays (x-coord, y-coord)
         """
-        im2, contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE,
+        im2, contours, hierarchy = cv2.findContours(processed_image,
+                                                    cv2.RETR_TREE,
                                                     cv2.CHAIN_APPROX_SIMPLE)
 
         return contours
 
-    def filter_contours(self, processed_image, contours, baseline):
+    def filter_contours(self, processed_image, contours, baseline,
+                        bl_diff=60):
         """
         Filter identified contours using the following steps:
         (1) Identify the location of prominent waves (above vs. below baseline).
@@ -136,10 +172,10 @@ class RRITagger:
 
         if np.mean(image_above_bl) > np.mean(image_below_bl):
             filtered_contours = \
-                long_contours[long_contours[:, 1] < baseline - 60]
+                long_contours[long_contours[:, 1] < baseline - bl_diff]
         else:
             filtered_contours = \
-                long_contours[long_contours[:, 1] > baseline + 60]
+                long_contours[long_contours[:, 1] > baseline + bl_diff]
             filtered_contours = \
                 filtered_contours[filtered_contours[:, 1] < 750]
 
