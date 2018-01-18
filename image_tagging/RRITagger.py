@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from analytic_wfm import peakdetect
-from RRITaggedImage import *
+from image_tagging.RRITaggedImage import RRITaggedImage
 
 class RRITagger:
 

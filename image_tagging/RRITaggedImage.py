@@ -55,4 +55,4 @@ class RRITaggedImage:
         plt.axhline(y=self.baseline, color='r', linestyle='-')
         plt.xticks([]), plt.yticks([])
 
-        plt.show()
+        #plt.show()
