@@ -12,7 +12,7 @@ class RRITaggedImage:
 
     def __init__(self, image, processed_image, baseline, contours, peaks):
         self.image = image
-        self.processed_image = processed_image,
+        self.processed_image = processed_image
         self.baseline = baseline
         self.contours = contours
         self.peaks = peaks
@@ -49,7 +49,7 @@ class RRITaggedImage:
         marker_width = ([0.5] * contours_length) + \
                        ([4] * peaks_length)
 
-        marker_alpha = ([0.75] * contours_length) + \
+        marker_alpha = ([0.5] * contours_length) + \
                        ([1] * peaks_length)
 
         plt.imshow(self.image, cmap="gray")
