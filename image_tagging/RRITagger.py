@@ -252,7 +252,9 @@ class RRITagger:
         if np.mean(image_above_bl) > np.mean(image_below_bl):
             mean_intensity.reverse()
 
-        bl_threshold = mean_intensity.index(np.max(mean_intensity))
+        mean_intensity = mean_intensity[20:100]
+
+        bl_threshold = mean_intensity.index(np.max(mean_intensity)) + 20
 
         # Alt option for finding bl_threshold - using consecutive black pixels:
 
@@ -339,9 +341,18 @@ class RRITagger:
                                         x_axis=contours[:, 0],
                                         lookahead=lookahead,
                                         delta=delta)
-        maxpeaks = np.vstack(maxpeaks)
-        minpeaks = np.vstack(minpeaks)
-
-        peaks = np.vstack((maxpeaks, minpeaks))
+        if bool(maxpeaks):
+            maxpeaks = np.vstack(maxpeaks)
+            if bool(minpeaks):
+                minpeaks = np.vstack(minpeaks)
+                peaks = np.vstack((maxpeaks, minpeaks))
+            else:
+                peaks = maxpeaks
+        else:
+            if bool(minpeaks):
+                minpeaks = np.vstack(minpeaks)
+                peaks = minpeaks
+            else:
+                peaks = None
 
         return peaks
