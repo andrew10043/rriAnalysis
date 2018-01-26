@@ -33,13 +33,11 @@ tagger = RRITagger()
 
 # Call tag_image method on two images (one with waves above baseline and one
 # with waves below baseline)
-taggedImage_up = tagger.tag_image(name="images/01_original.jpg",
-                                  lookahead=20, delta=50)
-taggedImage_down = tagger.tag_image(name="images/05_original.jpg",
-                                    lookahead=20, delta=50)
+taggedImage_up = tagger.tag_image(name="images/test_1.bmp")
+taggedImage_down = tagger.tag_image(name="images/test_2.bmp")
 
 # Generate figure with 2x3 row/column structure showing (1) original grayscale
-# images; (2) pre-processed images and (3) final tagged imges
+# images; (2) pre-processed images and (3) final tagged images
 fig = plt.figure(figsize=(10,8))
 
 plt.subplot(231)
@@ -70,6 +68,7 @@ plt.subplot(236)
 plt.title('Tagged Image - Waves Down')
 taggedImage_down.plot()
 
-plt.subplots_adjust(left=0.01, bottom=0.05, right=0.99, top=0.95, wspace=0, hspace=0)
+plt.subplots_adjust(left=0.01, bottom=0.05, right=0.99, top=0.95, wspace=0,
+                    hspace=0)
 plt.tight_layout()
 plt.savefig('plot_tags.png', bbox_inches='tight')
