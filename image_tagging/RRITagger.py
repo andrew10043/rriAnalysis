@@ -63,13 +63,16 @@ class RRITagger:
         if image.shape[0] != 1152 or image.shape[1] != 864:
             image = cv2.resize(src=image, dsize=(1152, 864))
 
-        # Identify baseline, mask image, find wave position, process image,
-        # find contours, filter contours, and find peaks/troughs
+        # Identify baseline and mask image from non-grayscale components
         baseline, gray_mask, masked_image = self.find_baseline(image=image)
 
+        # Find wave position and upper/lower bounds of the true image for
+        # later thresholding
         wave_position, upper_bound, lower_bound = self.find_waves(
             image=masked_image, baseline=baseline)
 
+        # Process image, find appropriate coordinates to assess wave frequency
+        # and to later filter contours
         processed_image, freq_line, max_threshold = \
             self.pre_process(image=masked_image, baseline=baseline,
                              wave_position=wave_position,
@@ -77,13 +80,16 @@ class RRITagger:
                              bright_1=bright_1, bright_2=bright_2,
                              blur_threshold=blur_threshold)
 
+        # Find contours
         contours = self.find_contours(image=processed_image)
 
+        # Filter contours
         filtered_contours = self.filter_contours(contours=contours,
                                                  baseline=baseline,
                                                  wave_position=wave_position,
                                                  max_threshold=max_threshold)
 
+        # Find peaks and troughs
         peaks, troughs = self.find_peaks(contours=filtered_contours,
                                          baseline=baseline,
                                          wave_position=wave_position,
@@ -121,6 +127,9 @@ class RRITagger:
 
         gray_mask: array_like
             Mask to remove all non-gray components.
+
+        gray: array_like
+            Masked image with non-gray components removed.
         """
         # Find pixels with R==G==B to create color and gray masks
         bg = image[:, :, 0] == image[:, :, 1]  # B == G
@@ -151,6 +160,8 @@ class RRITagger:
             y1 = int(y0 + 1000 * a)
             y2 = int(y0 - 1000 * a)
 
+        # Return the integer nearest the mean of the two y-values
+        # Also return the gray mask and the gray masked image
         return int((y1 + y2) / 2), gray_mask, gray
 
     @staticmethod
@@ -260,6 +271,14 @@ class RRITagger:
         -------
         wave_position : str
             Position of waves ("up" or "down") relative to baseline
+
+        upper_bound : int
+            Upper bound of the image as defined by the highest row that is not
+            fully black. Allows for proper thresholding.
+
+        lower_bound : int
+            Lower bound of the image as defined by the lowest row that is not
+            fully black. Allows for proper thresholding.
         """
         # Temporary brighten, blur and threshold to find mask for
         # iterative brightening of waves only
@@ -340,21 +359,21 @@ class RRITagger:
             Y-coordinate of image baseline. Used here to calculate the
             location at which to switch the gaussian blur kernal size.
 
-        wave_position: str
+        wave_position : str
             Position of waves relative to baseline ("up" or "down")
 
-        upper_bound: int
+        upper_bound : int
             Upper bound of the image as defined by the highest row that is not
             fully black. Allows for proper thresholding.
 
-        lower_bound: int
-            Lower bound of the image as definted by the lowest row that is not
+        lower_bound : int
+            Lower bound of the image as defined by the lowest row that is not
             fully black. Allows for proper thresholding.
 
-        bright_1: int | default=60
+        bright_1 : int | default=60
             Brightness modifier for image processing prior to iterative blur.
 
-        bright_2: int | default=60
+        bright_2 : int | default=60
             Brightness modifier for image processing after iterative blur.
 
         blur_threshold : int | default=5000000
@@ -366,6 +385,13 @@ class RRITagger:
         -------
         processed_image : array_like
             Processed image.
+
+        freq_line : int
+            Y-coordinate of the row at which wave peaks begin to separate.
+
+        max_threshold : int
+            Row with the maximal pixel intensity in the processed image.
+            Utilized to filter contours.
         """
         # Black out sides of image and area opposite baseline
         image[:, 0:50] = 0
