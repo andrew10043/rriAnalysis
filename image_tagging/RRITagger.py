@@ -5,45 +5,56 @@ A collection of methods utilized in processing static renal Doppler waveforms
 to assess the renal resistive index (RRI).
 """
 
-
 import cv2
 import numpy as np
 from analytic_wfm import peakdetect
-from image_tagging.RRITaggedImage import RRITaggedImage
+from image_tagging.RRITaggedImage import RRITaggedImage, calc_rri
 
-# Use if filtering contour points based on distance from other points
-# from scipy.spatial.distance import pdist, squareform
 
 class RRITagger:
 
     def __init__(self):
         self.name = ""
 
-    def tag_image(self, name, lookahead_sensitivity=0.2,
+    def tag_image(self, name, bright_1=100, bright_2=100,
+                  blur_threshold=5000000, ahead_sensitivity=0.1,
                   delta_sensitivity=0.5):
         """
         Fully process a static RRI image.
 
         Parameters
         ----------
-        name : string
+        name : str
             File path to static renal Doppler image.
 
-        lookahead_sensitivity : float | default = 0.5
-            Proportion of the maximum vertical span of contour points that
-            is used as the delta argument for the peakdetect function.
+        bright_1: int | default=100
+            Parameter in pre_process method.
+            Brightness modifier for image processing prior to iterative blur.
 
-        delta_sensitivity : float | default = 0.2
+        bright_2: int | default=100
+            Parameter in pre_process method.
+            Brightness modifier for image processing after iterative blur.
+
+        blur_threshold : int | default=5000000
+            Parameter in pre_process method.
+            Threshold below which iterative blur is stopped. Tested against
+            the sum of squared differences between pixels in current iteration
+            of blur and previous iteration.
+
+        ahead_sensitivity : float | default=0.1
+            Parameter in find_peaks method.
+            Proportion of the maximum vertical span of contour points that
+            is used as the delta argument for the peak detect function.
+
+        delta_sensitivity : float | default = 0.5
+            Parameter in find peaks method.
             Proportion of the number of pixels per wave that is used as the
-            lookahead argument for the peakdetect function.
+            lookahead argument for the peak detect function.
 
         Returns
         -------
         RRITaggedImage : object of class RRITaggedImage
-            Contains original image, masked image, processed image, baseline
-            value, wave position (up/down), filtered contours, peak coordinates,
-            trough coordinates, baseline threshold for contour filter, and
-            blur threshold for processing.
+
         """
         # Read original image in color
         image = cv2.imread(name, 1)
@@ -52,25 +63,34 @@ class RRITagger:
         if image.shape[0] != 1152 or image.shape[1] != 864:
             image = cv2.resize(src=image, dsize=(1152, 864))
 
-        # Generate gray scale image for identification of baseline
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
         # Identify baseline, mask image, find wave position, process image,
         # find contours, filter contours, and find peaks/troughs
-        baseline = self.find_baseline(gray_image)
-        masked_image = self.mask_image(image)
-        wave_position = self.find_waves(masked_image, baseline)
-        processed_image, blur_threshold, b = self.pre_process(masked_image,
-                                                              baseline,
-                                                              wave_position)
-        contours = self.find_contours(processed_image)
-        filtered_contours, bl_threshold = self.filter_contours(processed_image,
-                                                 contours, baseline,
-                                                 wave_position)
-        peaks, troughs = self.find_peaks(filtered_contours, wave_position,
-                                         processed_image, blur_threshold,
-                                         lookahead_sensitivity,
-                                         delta_sensitivity)
+        baseline, gray_mask, masked_image = self.find_baseline(image=image)
+
+        wave_position, upper_bound, lower_bound = self.find_waves(
+            image=masked_image, baseline=baseline)
+
+        processed_image, freq_line, max_threshold = \
+            self.pre_process(image=masked_image, baseline=baseline,
+                             wave_position=wave_position,
+                             upper_bound=upper_bound, lower_bound=lower_bound,
+                             bright_1=bright_1, bright_2=bright_2,
+                             blur_threshold=blur_threshold)
+
+        contours = self.find_contours(image=processed_image)
+
+        filtered_contours = self.filter_contours(contours=contours,
+                                                 baseline=baseline,
+                                                 wave_position=wave_position,
+                                                 max_threshold=max_threshold)
+
+        peaks, troughs = self.find_peaks(contours=filtered_contours,
+                                         baseline=baseline,
+                                         wave_position=wave_position,
+                                         image=processed_image,
+                                         freq_line=freq_line,
+                                         ahead_sensitivity=ahead_sensitivity,
+                                         delta_sensitivity=delta_sensitivity)
 
         # Return RRITaggedImage object
         return RRITaggedImage(image=image, masked_image=masked_image,
@@ -80,64 +100,84 @@ class RRITagger:
                               contours=filtered_contours,
                               peaks=peaks,
                               troughs=troughs,
-                              bl_threshold=bl_threshold,
-                              blur_threshold=blur_threshold,
-                              b=b)
+                              max_threshold=max_threshold,
+                              freq_line=freq_line)
 
-    def find_baseline(self, image):
+    @staticmethod
+    def find_baseline(image):
         """
-        Identify baseline of the gray scale image using the following steps:
-        (1) Utilize Canny edge detection
-        (2) Employ the Hough Lines algorithm
+        Identify baseline of the gray scale image using the Hough Lines
+        algorithm.
 
         Parameters
         ----------
-        image : np.array(), values are 0 or 255
-            Gray scale image.
+        image : array_like
+            Color image.
 
         Returns
         -------
         baseline : int
             Y-coordinate of identified baseline.
+
+        gray_mask: array_like
+            Mask to remove all non-gray components.
         """
-        edges = cv2.Canny(image, 50, 150, apertureSize=3)
-        lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+        # Find pixels with R==G==B to create color and gray masks
+        bg = image[:, :, 0] == image[:, :, 1]  # B == G
+        gr = image[:, :, 1] == image[:, :, 2]  # G == R
+        gray_mask = np.bitwise_and(bg, gr, dtype=np.uint8) * 255
+        color_mask = 255 - gray_mask
+        color_only = cv2.bitwise_and(image, image, mask=color_mask)
+        gray_color = cv2.cvtColor(color_only, cv2.COLOR_BGR2GRAY)
+
+        no_color = cv2.bitwise_and(image, image, mask=gray_mask)
+        gray = cv2.cvtColor(no_color, cv2.COLOR_BGR2GRAY)
+
+        # Threshold lines
+        ret, thresh_image = cv2.threshold(gray_color, 0, 255,
+                                          cv2.THRESH_BINARY +
+                                          cv2.THRESH_OTSU)
+
+        # Remove small defect on top of many images
+        thresh_image[0:10, :] = 0
+
+        # Hough lines algorithm
+        lines = cv2.HoughLines(thresh_image, 1, np.pi / 180, 500)
+        y1, y2 = 0, 0
         for rho, theta in lines[0]:
             a = np.cos(theta)
             b = np.sin(theta)
-            x0 = a * rho
             y0 = b * rho
-            x1 = int(x0 + 1000 * (-b))
-            y1 = int(y0 + 1000 * (a))
-            x2 = int(x0 - 1000 * (-b))
-            y2 = int(y0 - 1000 * (a))
+            y1 = int(y0 + 1000 * a)
+            y2 = int(y0 - 1000 * a)
 
-        return int((y1 + y2) / 2)
+        return int((y1 + y2) / 2), gray_mask, gray
 
-    def mask_image(self, image):
+    @staticmethod
+    def mask_image(image, mask):
         """
-        Identify position of waves (above / below the baseline)
+        Mask non-wave components of the image. Not currently implemented in
+        tag_image given performance constraints.
 
         Parameters
         ----------
-        image : np.array()
+        image : array_like
             Original color image.
+
+        mask : array_like
+            gray_mask returned from find_baseline method.
 
         Returns
         -------
-        masked_image : np.array()
+        masked_image : array_like
             Gray scale version of image masked for color, text, and icons.
         """
-
-        # Find pixels with R==G==B to create color mask
-        bg = image[:, :, 0] == image[:, :, 1]  # B == G
-        gr = image[:, :, 1] == image[:, :, 2]  # G == R
-        color_mask = np.bitwise_and(bg, gr, dtype=np.uint8) * 255
-        no_color = cv2.bitwise_and(image, image, mask=color_mask)
+        # Mask out color components
+        no_color = cv2.bitwise_and(image, image, mask=mask)
 
         # Find text regions
-        mser = cv2.MSER_create()
         gray = cv2.cvtColor(no_color, cv2.COLOR_BGR2GRAY)
+        mser = cv2.MSER_create()
         vis = no_color.copy()
         regions, _ = mser.detectRegions(gray)
         hulls = [cv2.convexHull(p.reshape(-1, 1, 2)) for p in regions]
@@ -185,8 +225,9 @@ class RRITagger:
         for contour in text_contours:
             epsilon = 0.1 * cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, epsilon, True)
-            match = cv2.matchShapes(icon_1_contour, contour, 1, 0.0) < 2 or \
-                    cv2.matchShapes(icon_2_contour, contour, 1, 0.0 < 2)
+            match = \
+                cv2.matchShapes(icon_1_contour, contour, 1, 0.0) < 2 or \
+                cv2.matchShapes(icon_2_contour, contour, 1, 0.0) < 2
             area = cv2.contourArea(contour) <= 50
             bounds = len(approx) == 4 or len(approx) == 2
             condition = match and area and bounds
@@ -202,13 +243,14 @@ class RRITagger:
 
         return masked_image
 
-    def find_waves(self, masked_image, baseline):
+    @staticmethod
+    def find_waves(image, baseline):
         """
         Identify position of waves (above / below the baseline)
 
         Parameters
         ----------
-        masked_image : np.array()
+        image : array_like
             Masked image.
 
         baseline : int
@@ -216,297 +258,220 @@ class RRITagger:
 
         Returns
         -------
-        wave_position : string
+        wave_position : str
             Position of waves ("up" or "down") relative to baseline
-        """
-        if baseline < 105:
-            return "down"
-        elif baseline > 840:
-            return "up"
-        else:
-            # Temporary brighten, blur and threshold to find mask for
-            # iterative brightening of waves only
-            bright = cv2.convertScaleAbs(masked_image, 1, 10)
-
-            # Define bounds of actual sub-image to ensure proper thresholding
-            not_black = []
-            for idx, row in enumerate(bright):
-                if np.max(row) != 0:
-                    not_black.append(idx)
-
-            if bool(not_black):
-                lower_bound = np.min(not_black)
-                upper_bound = np.max(not_black)
-            else:
-                lower_bound = 0
-                upper_bound = 864
-
-            blur_image = cv2.GaussianBlur(bright[lower_bound:upper_bound, :],
-                                          (91, 91), 0)
-            ret, thresh_image = cv2.threshold(blur_image, 0, 255,
-                                              cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-            top = np.zeros((lower_bound, 1152), dtype=np.uint8)
-            bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
-
-            full = np.vstack((top, thresh_image, bottom))
-
-            waves = full == 255
-            waves_mask = np.bitwise_and(waves, waves, dtype=np.uint8) * 255
-            waves_only_img = cv2.bitwise_and(masked_image, masked_image,
-                                             mask=waves_mask)
-
-            waves_above = waves_only_img[0:baseline, :]
-            waves_below = waves_only_img[baseline:864, :]
-            above_vec = waves_above[waves_mask[0:baseline, :] == 255]
-            below_vec = waves_below[waves_mask[baseline:864, :] == 255]
-
-            if len(above_vec) == 0:
-                return "down"
-            elif len(below_vec) == 0:
-                return "up"
-            else:
-                if np.sum(above_vec) > np.sum(below_vec):
-                    return "up"
-                else:
-                    return "down"
-
-    def pre_process(self, masked_image, baseline, wave_position):
-        """
-        Pre-process grayscale image using a number of iterative processing
-        steps. The image is first masked for wave position, and then
-        iteratively brightened until pixels within the wave mask reach an
-        intensity threshold. The brightened image is then iteratively
-        blurred and until there is a consecutive string of white pixels
-        greater than a defined value after Otsu's thresholding has been
-        applied. Finally, a blur threshold Y-value is determined by finding
-        the row of pixels in which there are at least two strings of
-        consecutive black pixels >80 pixels in length. This location
-        presumably is at the position in which waves have begun to thin
-        into their peaks. The portion of the waves below the threshold line
-        is blurred using the iterative blur value, while the peaks are
-        blurred proportionally less to reduce loss of sharpness when possible.
-
-        Parameters
-        ----------
-        masked_image : np.array()
-            Object returned mask_image method.
-
-        baseline : float
-            Y-coordinate of image baseline. Used here to calculate the
-            location at which to switch the gaussian blur kernal size.
-
-        wave_position: string
-            Position of waves relative to baseline ("up" or "down")
-
-        Returns
-        -------
-        thresh_image : np.array(), values are 0 or 255
-            Processed image.
         """
         # Temporary brighten, blur and threshold to find mask for
         # iterative brightening of waves only
-        bright = cv2.convertScaleAbs(masked_image, 1, 10)
+        bright = cv2.convertScaleAbs(image, 1, 7)
 
-        # Define bounds of actual sub-image to ensure proper thresholding
-        not_black = []
-        for idx, row in enumerate(bright):
-            if np.max(row) != 0:
-                not_black.append(idx)
+        # Define bounds of actual sub-image to ensure proper
+        # threshold effect
 
-        if bool(not_black):
-            lower_bound = np.min(not_black)
-            upper_bound = np.max(not_black)
-        else:
+        not_black = np.asarray(np.where(np.mean(bright, axis=1) != 0))
+        if not_black.size == 0:
             lower_bound = 0
             upper_bound = 864
+        else:
+            lower_bound = np.min(not_black)
+            upper_bound = np.max(not_black)
 
-        blur_image = cv2.GaussianBlur(bright[lower_bound:upper_bound, :],
-                                      (91, 91), 0)
+        # Blur and threshold image
+        blur_image = cv2.medianBlur(bright[lower_bound:upper_bound, :],
+                                    ksize=21)
+
         ret, thresh_image = cv2.threshold(blur_image, 0, 255,
-                                          cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                                          cv2.THRESH_BINARY +
+                                          cv2.THRESH_OTSU)
 
+        # Piece image back to original size
         top = np.zeros((lower_bound, 1152), dtype=np.uint8)
         bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
 
         full = np.vstack((top, thresh_image, bottom))
 
+        # Define and apply waves mask
         waves = full == 255
         waves_mask = np.bitwise_and(waves, waves, dtype=np.uint8) * 255
-        waves_only_vec = masked_image[waves_mask == 255]
-        waves_only_img = cv2.bitwise_and(masked_image, masked_image,
-                                         mask=waves_mask)
 
-        # Iterative brighten based on intensity within the waves mask
-        intensity = np.mean(waves_only_vec)
-        cycle = 0
-        bright_waves = waves_only_img
-        bright_original = masked_image
-        while intensity < 60 and cycle < 20:
-            # Increase brightness of image masked for waves
-            bright_waves = cv2.convertScaleAbs(bright_waves, 1, 5)
+        # Dilate mask to ensure inclusion of all components of the waves
+        dilated_mask = cv2.dilate(waves_mask, None, iterations=10)
 
-            # Increase brightness of original masked image in parallel
-            bright_original = cv2.convertScaleAbs(bright_original, 1, 5)
+        waves_only_img = cv2.bitwise_and(image, image,
+                                         mask=dilated_mask)
 
-            # Calculate intensity on image masked for waves
-            waves_only_vec = bright_waves[waves_mask == 255]
-            intensity = np.mean(waves_only_vec)
-            cycle += 1
+        # Find portion of waves-only image above and below baseline
+        waves_above = waves_only_img[0:baseline, :]
+        waves_below = waves_only_img[baseline:864, :]
+        above_vec = waves_above[waves_mask[0:baseline, :] == 255]
+        below_vec = waves_below[waves_mask[baseline:864, :] == 255]
 
-        # Wave positions
-        if wave_position == "up":
-            valid_side_ext = masked_image[np.max([lower_bound, 0]):baseline,
-                             50:1050]
+        # Return up/down based on the sum of pixel values on either side
+        # of the baseline
+        if len(above_vec) == 0:
+            return "down", upper_bound, baseline
+        elif len(below_vec) == 0:
+            return "up", baseline, lower_bound
         else:
-            valid_side_ext = masked_image[(baseline + 5):np.min([upper_bound,
-                                                                 864]), 50:1050]
+            if np.sum(above_vec) > np.sum(below_vec):
+                return "up", baseline, lower_bound
+            else:
+                return "down", upper_bound, baseline
 
-        # Find position at which to reduce blur to preserve peaks
-        blur_image = cv2.GaussianBlur(bright_original[
-                                      lower_bound:upper_bound, :], (91, 91), 0)
+    @staticmethod
+    def pre_process(image, baseline, wave_position, upper_bound, lower_bound,
+                    bright_1=60, bright_2=60, blur_threshold=5000000):
+        """
+        Pre-process gray scale image using a number of iterative processing
+        steps. The image is first masked for wave position, and then
+        brightened within the wave mask to a specified intensity threshold.
+        The brightened image is then iteratively blurred with a median filter
+        until the blurring process no longer results in substantial change
+        to the image (measured by the sum of squared differences between pixels
+        in the image in the current blur iteration and the previous iteration).
+        Next the image is again brightened, and Otsu's threshold is applied.
+
+        Parameters
+        ----------
+        image : array_like
+            Object returned mask_image method.
+
+        baseline : int
+            Y-coordinate of image baseline. Used here to calculate the
+            location at which to switch the gaussian blur kernal size.
+
+        wave_position: str
+            Position of waves relative to baseline ("up" or "down")
+
+        upper_bound: int
+            Upper bound of the image as defined by the highest row that is not
+            fully black. Allows for proper thresholding.
+
+        lower_bound: int
+            Lower bound of the image as definted by the lowest row that is not
+            fully black. Allows for proper thresholding.
+
+        bright_1: int | default=60
+            Brightness modifier for image processing prior to iterative blur.
+
+        bright_2: int | default=60
+            Brightness modifier for image processing after iterative blur.
+
+        blur_threshold : int | default=5000000
+            Threshold below which iterative blur is stopped. Tested against
+            the sum of squared differences between pixels in current iteration
+            of blur and previous iteration.
+
+        Returns
+        -------
+        processed_image : array_like
+            Processed image.
+        """
+        # Black out sides of image and area opposite baseline
+        image[:, 0:50] = 0
+        image[:, 1050:1152] = 0
+        if wave_position == "up":
+            image[baseline:, :] = 0
+        else:
+            image[:baseline, :] = 0
+
+        # Temporary brighten, blur and threshold to find mask for
+        # iterative brightening of waves only
+        bright = cv2.convertScaleAbs(image, 1, 7)
+
+        # Blur and threshold image
+        blur_image = cv2.medianBlur(bright[lower_bound:upper_bound, :],
+                                    ksize=21)
+
         ret, thresh_image = cv2.threshold(blur_image, 0, 255,
-                                          cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        full = np.vstack((top, thresh_image, bottom))
-
-        if wave_position == "up":
-            valid_ext = full[lower_bound:baseline, 50:1050]
-        else:
-            valid_ext = full[(baseline + 5):upper_bound, 50:1050]
-
-        # Count consecutive black pixels by row
-        consecutive_black = []
-        for row in valid_ext:
-            length, count = [], 0
-            condition = row == 0
-            for i in range(len(condition)):
-                if condition[i] == True:
-                    count += 1
-                elif condition[i] == False and count > 0:
-                    length.append(count)
-                    count = 0
-
-                if i == len(condition) - 1 and count > 0:
-                    length.append(count)
-                if i == len(condition) - 1 and count == 0:
-                    length.append(0)
-
-            long = [elem for elem in length if elem > 80]
-            consecutive_black.append(len(long))
-
-        if wave_position == "up":
-            consecutive_black.reverse()
-
-        # Find the row with maximum intensity (this is the contour threshold
-        # for later, and also used below.
-
-        mean_intensity = []
-        for row in valid_side_ext:
-            mean_intensity.append(np.mean(row))
-        if wave_position == "up":
-            mean_intensity.reverse()
-            max_threshold = mean_intensity.index(np.max(mean_intensity))
-        else:
-            max_threshold = mean_intensity.index(np.max(mean_intensity))
-
-        # Find the first row in which there are at least two segments of
-        # consecutive black pixels > 50. This row must occur after the row with
-        # the maximum string of white pixels (bl_threshold).
-        black_above = np.asarray(
-            np.where(np.asarray(consecutive_black) >= 2))
-        ideal_black_above = black_above[
-            np.where(black_above > max_threshold)]
-
-        if ideal_black_above.size == 0:
-            location = max_threshold + 50
-        else:
-            location = np.min(ideal_black_above)
-
-        if wave_position == "up":
-            blur_threshold = baseline - location
-
-        else:
-            blur_threshold = baseline + 5 + location
-
-        # Iterative blur + threshold
-        if wave_position == "up":
-            valid_side_trim = bright_original[blur_threshold:baseline,
-                              50:1050]
-        else:
-            valid_side_trim = bright_original[(baseline + 5):blur_threshold,
-                              50:1050]
-
-        cycle = 0
-        max_white = 0
-        b = 5
-        while max_white < 400 and cycle < 15:
-            blur_trim = cv2.GaussianBlur(valid_side_trim, (b, b), 0)
-            ret, thresh_image = cv2.threshold(blur_trim, 0, 255,
-                                              cv2.THRESH_BINARY +
-                                              cv2.THRESH_OTSU)
-
-            consecutive_white = []
-            for row in thresh_image:
-                length, count = [], 0
-                condition = row == 255
-                for i in range(len(condition)):
-                    if condition[i] == True:
-                        count += 1
-                    elif condition[i] == False and count > 0:
-                        length.append(count)
-                        count = 0
-
-                    if i == len(condition) - 1 and count > 0:
-                        length.append(count)
-                    if i == len(condition) - 1 and count == 0:
-                        length.append(0)
-
-                consecutive_white.append(np.max(length))
-
-            if wave_position == "up":
-                consecutive_white.reverse()
-
-            max_white = np.max(consecutive_white)
-            cycle += 1
-            b += 6
-
-        if b < 47:
-            b2 = 11
-        else:
-            b2 = b - 30
-
-        if wave_position == "up":
-            blur_top = cv2.GaussianBlur(bright_original[
-                                        lower_bound:blur_threshold, :],
-                                        (b2, b2), 0)
-            blur_bottom = cv2.GaussianBlur(bright_original[
-                                           blur_threshold:upper_bound, ],
-                                           (b, b), 0)
-        else:
-            blur_top = cv2.GaussianBlur(bright_original[
-                                        lower_bound:blur_threshold, ],
-                                        (b, b), 0)
-            blur_bottom = cv2.GaussianBlur(bright_original[
-                                           blur_threshold:upper_bound, ],
-                                           (b2, b2), 0)
-
-        blur_total = np.vstack((blur_top, blur_bottom))
-        ret, thresh_image = cv2.threshold(blur_total, 0, 255,
                                           cv2.THRESH_BINARY +
                                           cv2.THRESH_OTSU)
 
-        processed_image = np.vstack((top, thresh_image, bottom))
+        # Piece image back to original size
+        top = np.zeros((lower_bound, 1152), dtype=np.uint8)
+        bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
 
-        return processed_image, blur_threshold, b
+        full = np.vstack((top, thresh_image, bottom))
 
-    def find_contours(self, processed_image):
+        # Define and apply waves mask
+        waves = full == 255
+        waves_mask = np.bitwise_and(waves, waves, dtype=np.uint8) * 255
+
+        # Dilate mask to ensure inclusion of all components of the waves
+        dilated_mask = cv2.dilate(waves_mask, None, iterations=10)
+
+        waves_only_img = cv2.bitwise_and(image, image,
+                                         mask=dilated_mask)
+
+        # Brighten to mean intensity based on initial value
+        non_black = np.squeeze(waves_only_img[np.where(waves_only_img != 0)])
+        intensity = np.percentile(non_black, 10)
+        bright_adjust = bright_1 / intensity
+        bright = cv2.convertScaleAbs(waves_only_img, 1, bright_adjust)
+
+        # Iterative blur + threshold
+        thresh = blur_threshold
+        count = 0
+        prev_blur = cv2.medianBlur(bright, ksize=5)
+        blur = cv2.medianBlur(prev_blur, ksize=5)
+        ssd_blur = np.sum((blur - prev_blur) ** 2)
+        while ssd_blur > thresh:
+            blur = cv2.medianBlur(blur, ksize=5)
+            ssd_blur = np.sum((blur - prev_blur) ** 2)
+            prev_blur = blur
+            count += 1
+
+        # Brighten again
+        non_black = np.squeeze(blur[np.where(blur != 0)])
+        intensity = np.percentile(non_black, 10)
+        bright_adjust = bright_2 / intensity
+        bright = cv2.convertScaleAbs(blur, 1, bright_adjust)
+
+        # Threshold image
+        ret, thresh_image = cv2.threshold(bright[lower_bound:upper_bound, :],
+                                          0, 255,
+                                          cv2.THRESH_BINARY +
+                                          cv2.THRESH_OTSU)
+
+        # Piece image back to original size
+        top = np.zeros((lower_bound, 1152), dtype=np.uint8)
+        bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
+
+        full = np.vstack((top, thresh_image, bottom))
+
+        # Find the row with maximum intensity (this is the contour threshold
+        # for later, and also used below. This should be within 200 of baseline.
+        max_threshold = np.argmax(np.mean(full[baseline-100:baseline+100, :],
+                                          axis=1)) + (baseline-100)
+
+        # Find the non-black row with the median mean pixel intensity to
+        # indicate the position at which waves have separated into peaks
+        row_means = np.mean(full, axis=1)
+
+        if wave_position == "up":
+            valid_means = row_means[:max_threshold]
+        else:
+            valid_means = row_means[max_threshold:]
+
+        non_black_means = valid_means[np.where(valid_means != 0)]
+
+        median_non_black = np.percentile(non_black_means, 50,
+                                         interpolation='nearest')
+
+        freq_line = int(np.max(np.argwhere(row_means == median_non_black)))
+
+        processed_image = full
+
+        return processed_image, freq_line, max_threshold
+
+    @staticmethod
+    def find_contours(image):
         """
         Identify contours of pre-processed image.
 
         Parameters
         ----------
-        processed_image : np.array(), values are 0 or 255
+        image : array_like
             Processed image.
 
         Returns
@@ -514,170 +479,138 @@ class RRITagger:
         contours : list of arrays
             A list of all contours, stored as n x 2 arrays (x-coord, y-coord)
         """
-        im2, contours, hierarchy = cv2.findContours(processed_image,
-                                                    cv2.RETR_TREE,
+        im2, contours, hierarchy = cv2.findContours(image,
+                                                    cv2.RETR_EXTERNAL,
                                                     cv2.CHAIN_APPROX_NONE)
 
         return contours
 
-    def filter_contours(self, processed_image, contours, baseline,
-                        wave_position):
+    @staticmethod
+    def filter_contours(contours, baseline, wave_position, max_threshold):
         """
         Filter identified contours using the following steps:
-        (1) Remove contours with length < a certain value to reduce noise.
-        (2) Identify ideal buffer from baseline at which to start contour
-        filter. This is currently based on the row with the maximum pixel value.
-        (3) Remove contours with identical x-coordinates based on wave
+        (1) Remove contours with area < 1000.
+        (2) Remove contours whose point closest to the baseline is above a
+        given threshold.
+        (3) Start contour filter at the row with the maximum pixel value;
+        removes all contour points below this row.
+        (4) Remove contours with identical x-coordinates based on wave
         position. For example, if waves are above the baseline, the coordinate
         pair with the lower Y-coordinate (lower on the image, higher in value)
         is removed.
-        (4) Optionally filter contours based on proximity to other contour
-        points to reduce noise.
 
         Parameters
         ----------
-        processed_image : np_array()
-            Pre-processed image (gaussian filter + thresholding)
-
         contours : list
             List of arrays containing coordinates for each contour.
 
-        baseline : float
+        baseline : int
             Mean y-coordinate of baseline identified by self.find_baseline()
 
-        wave_position: string
+        wave_position : str
             Position of waves relative to baseline ("up" or "down")
+
+        max_threshold : int
+            Row with the maximal pixel intensity in the processed image.
+            Utilized to filter contours.
 
         Returns
         -------
         filtered_contours : np.array
             Array of all filtered contours (x-coord, y-coord)
         """
-        # Filter out short contours (i.e. noise)
-        long = [elem for elem in contours if len(elem) > 100]
-        long = np.squeeze(
-            np.vstack(long)
+        # Filter for large contours
+
+        contour_area = []
+        for val in contours:
+            contour_area.append(cv2.contourArea(val))
+        contour_area = np.asarray(contour_area)
+        contours = np.asarray(contours)
+
+        large = contours[np.where(contour_area > 1000)]
+
+        # Filter contours based on position relative to baseline
+        baseline_side = []
+        for contour in large:
+            if wave_position == "up":
+                baseline_side.append(
+                    contour[np.argmax(contour[:, :, 1])][0][1])
+            else:
+                baseline_side.append(
+                    contour[np.argmin(contour[:, :, 1])][0][1])
+
+        baseline_side = np.asarray(baseline_side, dtype=int)
+        baseline_side = abs(baseline_side - baseline)
+
+        large = large[np.where(baseline_side < 100)]
+
+        large = np.squeeze(
+            np.vstack(large)
         )
 
-        long_contours_x = long[:, 0]
-        long_contours_y = long[:, 1]
+        large_contours_x = large[:, 0]
+        large_contours_y = large[:, 1]
 
-        long_contours = np.column_stack((long_contours_x,
-                                         long_contours_y))
-
-        # Find position of waves relative to baseline
-        image_above_bl = processed_image[0:baseline, :]
-        image_below_bl = processed_image[baseline:864, :]
-
-        if wave_position == "up":
-            valid_side = image_above_bl
-        else:
-            valid_side = image_below_bl
-
-        # Trim off black margins
-        valid_side_trim = valid_side[:, 50:1050]
-
-        # Find row with highest pixel value to identify where to filter
-        # contours
-        mean_intensity = []
-        for row in valid_side_trim:
-            mean_intensity.append(np.mean(row))
-        if wave_position == "up":
-            mean_intensity.reverse()
-
-        mean_intensity = mean_intensity[0:100]
-
-        bl_threshold = mean_intensity.index(np.max(mean_intensity))
-
-        # Alt option for finding bl_threshold - using consecutive black pixels:
-
-        # consecutive_black = []
-        # for row in valid_side_trim:
-        #     length, count = [], 0
-        #     condition = row == 0
-        #     for i in range(len(condition)):
-        #         if condition[i] == True:
-        #             count += 1
-        #         elif condition[i] == False and count > 0:
-        #             length.append(count)
-        #             count = 0
-        #
-        #         if i == len(condition) - 1 and count > 0:
-        #             length.append(count)
-        #         if i == len(condition) - 1 and count == 0:
-        #             length.append(0)
-        #
-        #     consecutive_black.append(np.max(length))
-        #
-        # consecutive_black.reverse()
-        #
-        # consecutive_black = consecutive_black[20:100]
-        # bl_threshold = consecutive_black.index(np.min(consecutive_black)) + 20
+        large_contours = np.column_stack((large_contours_x,
+                                          large_contours_y))
 
         # Set filter threshold
         if wave_position == "up":
             filtered_contours = \
-                long_contours[long_contours[:, 1] < (baseline - bl_threshold)]
+                large_contours[large_contours[:, 1] < max_threshold]
         else:
             filtered_contours = \
-                long_contours[long_contours[:, 1] > (baseline + bl_threshold)]
-
-        # Potential code to filter out contours that are not near other contours
-        # dist = squareform(pdist(filtered_contours))
-        # close_points = []
-        # for row in dist:
-        #     close = len(row[np.where(row < 3)])
-        #     close_points.append(close > 4)
-        #
-        # filtered_contours = filtered_contours[close_points]
+                large_contours[large_contours[:, 1] > max_threshold]
 
         # Function to filter out redundant contour coordinate pairs
         # If waves are up, removes all but the highest Y-value;
         # If waves are down, removes all but the lowest Y-value
-        def grouby_Y(a, wave_position):
+        def group_coordinates(a, wave_location):
             # Sort by x-coordinate
             b = a[
                 a[:, 0].argsort()]
             # Find all unique x-coordinates
             grp_idx = np.flatnonzero(np.r_[True, (b[:-1, 0] != b[1:, 0])])
             # Find max and min Y for all unique x-coordinates
-            grp_maxY = np.maximum.reduceat(b[:, 1], grp_idx)
-            grp_minY = np.minimum.reduceat(b[:, 1], grp_idx)
-            if wave_position == "up":
-                return np.c_[b[grp_idx, 0], grp_minY]
+            grp_max_y = np.maximum.reduceat(b[:, 1], grp_idx)
+            grp_min_y = np.minimum.reduceat(b[:, 1], grp_idx)
+            if wave_location == "up":
+                return np.c_[b[grp_idx, 0], grp_min_y]
             else:
-                return np.c_[b[grp_idx, 0], grp_maxY]
+                return np.c_[b[grp_idx, 0], grp_max_y]
 
-        filtered_contours = grouby_Y(filtered_contours, wave_position)
+        filtered_contours = group_coordinates(filtered_contours, wave_position)
 
         if wave_position == "up":
-            return filtered_contours, baseline-bl_threshold
+            return filtered_contours
         else:
-            return filtered_contours, baseline+bl_threshold
+            return filtered_contours
 
-    def find_peaks(self, contours, wave_position, processed_image,
-                   blur_threshold, lookahead_sensitivity=0.2,
+    @staticmethod
+    def find_peaks(contours, baseline, wave_position, image,
+                   freq_line, ahead_sensitivity=0.1,
                    delta_sensitivity=0.5):
         """
         Identify peaks and troughs based on filtered contours.
 
         Parameters
         ----------
-        contours : np.array()
+        contours : array_like
             Filtered contours (x-coord, y-coord)
+
+        baseline : int
+            Y-coordinate of baseline.
 
         wave_position: string
             Position of waves relative to baseline ("up" or "down")
 
-        processed_image : np.array(), values are 0 or 255
+        image : array_like
             Processed image.
 
-        blur_threshold: int
-            Y-coordinate of the threshold at which blur kernals were switched.
-            This provides the location at which waves have presumably begun
-            to thin into their peaks. Used here to assess wave frequency.
+        freq_line : int
+            Y-coordinate of the row at which wave peaks begin to separate.
 
-        lookahead_sensitivity : default=0.2
+        ahead_sensitivity : default=0.2
             Proportion of the maximum vertical span of contour points that
             is used as the delta argument for the peakdetect function.
 
@@ -688,9 +621,13 @@ class RRITagger:
 
         Returns
         -------
-        peaks : np.array()
+        peaks : array_like
             Array containing coordinates (x-coord, y-coord) of identified
-            peaks/troughs
+            peaks
+
+        troughs : array_like
+            Array containing coordinates (x-coord, y-coord) of identified
+            peaks
         """
         # Set delta based on proportion of the vertical span of contours
         vertical_span = np.max(contours[:, 1]) - np.min(contours[:, 1])
@@ -698,9 +635,9 @@ class RRITagger:
         delta_val = vertical_span * delta_sensitivity
 
         # Set lookahead based on frequency of waves at the blur threshold
-        blur_row = processed_image[blur_threshold, :]
-
+        blur_row = image[freq_line, :]
         white_row = np.where(blur_row == 255)
+
         first_white = np.min(white_row)
         last_white = np.max(white_row)
         horizontal_span = last_white - first_white
@@ -712,7 +649,7 @@ class RRITagger:
         for i in range(len(condition)):
             if condition[i]:
                 count += 1
-            elif condition[i] == False and count > 0:
+            elif not condition[i] and count > 0:
                 length.append(count)
                 count = 0
             if i == len(condition) - 1 and count > 0:
@@ -725,23 +662,67 @@ class RRITagger:
 
         # Set lookahead_val based on wave frequency
         if num_waves == 0:
-            lookahead_val = 50
+            wave_freq = 400
         else:
             wave_freq = horizontal_span / num_waves
-            lookahead_val = int(round(wave_freq * lookahead_sensitivity))
+
+        lookahead_val = int(round(wave_freq * ahead_sensitivity))
 
         maxpeaks, minpeaks = peakdetect(y_axis=contours[:, 1],
                                         x_axis=contours[:, 0],
                                         lookahead=lookahead_val,
                                         delta=delta_val)
 
-        if bool(maxpeaks):
-            maxpeaks = np.vstack(maxpeaks)
-        else:
+        # If no peaks or troughs found, try different delta sensitivity values
+        delta_sens = delta_sensitivity
+        while True:
+            if bool(maxpeaks) and bool(minpeaks):
+                break
+            elif delta_sens <= 0.05:
+                break
+            else:
+                delta_sens = delta_sens - 0.05
+                delta_val = vertical_span * delta_sens
+                maxpeaks, minpeaks = peakdetect(y_axis=contours[:, 1],
+                                                x_axis=contours[:, 0],
+                                                lookahead=lookahead_val,
+                                                delta=delta_val)
+
+        # If no valid RRI, try changing lookahead sensitivity
+        ahead_sense = ahead_sensitivity
+        while True:
+            if bool(maxpeaks):
+                maxpeaks = np.vstack(maxpeaks)
+            else:
+                maxpeaks = None
+            if bool(minpeaks):
+                minpeaks = np.vstack(minpeaks)
+            else:
+                minpeaks = None
+
+            if wave_position == "up":
+                rri = calc_rri(peaks=minpeaks, troughs=maxpeaks,
+                               baseline=baseline, wave_position=wave_position)
+            else:
+                rri = calc_rri(peaks=maxpeaks, troughs=minpeaks,
+                               baseline=baseline, wave_position=wave_position)
+
+            if np.mean(rri) != 0:
+                break
+            elif ahead_sense <= 0.01:
+                break
+            else:
+                ahead_sense = round(ahead_sense - 0.01, 2)
+                lookahead_val = int(round(wave_freq * ahead_sense))
+                delta_val = vertical_span * delta_sensitivity
+                maxpeaks, minpeaks = peakdetect(y_axis=contours[:, 1],
+                                                x_axis=contours[:, 0],
+                                                lookahead=lookahead_val,
+                                                delta=delta_val)
+
+        if type(maxpeaks) != np.ndarray:
             maxpeaks = None
-        if bool(minpeaks):
-            minpeaks = np.vstack(minpeaks)
-        else:
+        if type(minpeaks) != np.ndarray:
             minpeaks = None
 
         if wave_position == "up":
