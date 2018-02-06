@@ -18,7 +18,7 @@ class RRITagger:
 
     def tag_image(self, name, bright_1=100, bright_2=100,
                   blur_threshold=5000000, ahead_sensitivity=0.1,
-                  delta_sensitivity=0.5):
+                  delta_sensitivity=0.5, blur_kernal=5):
         """
         Fully process a static RRI image.
 
@@ -51,6 +51,10 @@ class RRITagger:
             Proportion of the number of pixels per wave that is used as the
             lookahead argument for the peak detect function.
 
+        blur_kernal : int | default=5
+            Parameter in the pre_process method.
+            Size of the median blur kernal used in the iterative blur process.
+
         Returns
         -------
         RRITaggedImage : object of class RRITaggedImage
@@ -78,7 +82,8 @@ class RRITagger:
                              wave_position=wave_position,
                              upper_bound=upper_bound, lower_bound=lower_bound,
                              bright_1=bright_1, bright_2=bright_2,
-                             blur_threshold=blur_threshold)
+                             blur_threshold=blur_threshold,
+                             blur_kernal=blur_kernal)
 
         # Find contours
         contours = self.find_contours(image=processed_image)
@@ -286,7 +291,6 @@ class RRITagger:
 
         # Define bounds of actual sub-image to ensure proper
         # threshold effect
-
         not_black = np.asarray(np.where(np.mean(bright, axis=1) != 0))
         if not_black.size == 0:
             lower_bound = 0
@@ -315,7 +319,6 @@ class RRITagger:
 
         # Dilate mask to ensure inclusion of all components of the waves
         dilated_mask = cv2.dilate(waves_mask, None, iterations=10)
-
         waves_only_img = cv2.bitwise_and(image, image,
                                          mask=dilated_mask)
 
@@ -339,7 +342,8 @@ class RRITagger:
 
     @staticmethod
     def pre_process(image, baseline, wave_position, upper_bound, lower_bound,
-                    bright_1=60, bright_2=60, blur_threshold=5000000):
+                    bright_1=60, bright_2=60, blur_threshold=5000000,
+                    blur_kernal=5):
         """
         Pre-process gray scale image using a number of iterative processing
         steps. The image is first masked for wave position, and then
@@ -380,6 +384,10 @@ class RRITagger:
             Threshold below which iterative blur is stopped. Tested against
             the sum of squared differences between pixels in current iteration
             of blur and previous iteration.
+
+        blur_kernal : int | default=5
+            Size of the median blur kernal used in the iterative blurring
+            process.
 
         Returns
         -------
@@ -438,13 +446,13 @@ class RRITagger:
         # Iterative blur + threshold
         thresh = blur_threshold
         count = 0
-        prev_blur = cv2.medianBlur(bright, ksize=5)
-        blur = cv2.medianBlur(prev_blur, ksize=5)
+        prev_blur = bright
+        blur = cv2.medianBlur(bright, ksize=blur_kernal)
         ssd_blur = np.sum((blur - prev_blur) ** 2)
         while ssd_blur > thresh:
-            blur = cv2.medianBlur(blur, ksize=5)
-            ssd_blur = np.sum((blur - prev_blur) ** 2)
             prev_blur = blur
+            blur = cv2.medianBlur(prev_blur, ksize=blur_kernal)
+            ssd_blur = np.sum((blur - prev_blur) ** 2)
             count += 1
 
         # Brighten again
@@ -466,7 +474,8 @@ class RRITagger:
         full = np.vstack((top, thresh_image, bottom))
 
         # Find the row with maximum intensity (this is the contour threshold
-        # for later, and also used below. This should be within 200 of baseline.
+        # for later, and also used below.
+        # This should be within 200 of baseline.
         max_threshold = np.argmax(np.mean(full[baseline-100:baseline+100, :],
                                           axis=1)) + (baseline-100)
 
@@ -507,7 +516,7 @@ class RRITagger:
         """
         im2, contours, hierarchy = cv2.findContours(image,
                                                     cv2.RETR_EXTERNAL,
-                                                    cv2.CHAIN_APPROX_NONE)
+                                                    cv2.CHAIN_APPROX_SIMPLE)
 
         return contours
 
@@ -546,7 +555,6 @@ class RRITagger:
             Array of all filtered contours (x-coord, y-coord)
         """
         # Filter for large contours
-
         contour_area = []
         for val in contours:
             contour_area.append(cv2.contourArea(val))
@@ -733,7 +741,7 @@ class RRITagger:
                 rri = calc_rri(peaks=maxpeaks, troughs=minpeaks,
                                baseline=baseline, wave_position=wave_position)
 
-            if np.mean(rri) != 0:
+            if np.mean(rri) != 0 and (len(minpeaks) == len(maxpeaks)):
                 break
             elif ahead_sense <= 0.01:
                 break
