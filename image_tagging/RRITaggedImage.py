@@ -1,8 +1,7 @@
 """
 Class RRITaggedImage
 
-Methods utilized to further analyze a tagged image (i.e. plotting,
-calculation of RRI).
+Methods utilized to further analyze a tagged image (i.e. plotting, calculation of RRI).
 """
 
 import numpy as np
@@ -59,7 +58,6 @@ class RRITaggedImage:
         No direct return; must be followed by plt.show() to display plot if
         desired.
         """
-
         contours_length = len(self.contours)
         if type(self.peaks) == np.ndarray:
             peaks_length = len(self.peaks)
@@ -126,6 +124,9 @@ def calc_rri(peaks, troughs, baseline, wave_position):
     rri : list
         List of RRI values for each identified wave
     """
+    # Import WavePosition Enum
+    from image_tagging.RRITagger import WavePosition
+
     if type(troughs) != np.ndarray or type(peaks) != np.ndarray:
         rri = [0]
 
@@ -151,7 +152,7 @@ def calc_rri(peaks, troughs, baseline, wave_position):
             elif val[1] > point_mean:
                 peaks_greater_than.append(idx)
 
-        if wave_position == "up":
+        if wave_position == WavePosition.UP:
             peaks = np.delete(peaks, peaks_greater_than, axis=0)
             troughs = np.delete(troughs, troughs_less_than, axis=0)
         else:

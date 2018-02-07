@@ -9,14 +9,21 @@ import cv2
 import numpy as np
 from analytic_wfm import peakdetect
 from image_tagging.RRITaggedImage import RRITaggedImage, calc_rri
+from enum import Enum
+
+
+class WavePosition(Enum):
+    UP = 0
+    DOWN = 1
 
 
 class RRITagger:
 
     def __init__(self):
-        self.name = ""
+        self.IMAGE_WIDTH = 1152
+        self.IMAGE_HEIGHT = 864
 
-    def tag_image(self, name, bright_1=100, bright_2=100,
+    def tag_image(self, name, prior_brightness=100, post_brightness=100,
                   blur_threshold=5000000, ahead_sensitivity=0.1,
                   delta_sensitivity=0.5, blur_kernal=5):
         """
@@ -27,11 +34,11 @@ class RRITagger:
         name : str
             File path to static renal Doppler image.
 
-        bright_1: int | default=100
+        prior_brightness: int | default=100
             Parameter in pre_process method.
             Brightness modifier for image processing prior to iterative blur.
 
-        bright_2: int | default=100
+        post_brightness: int | default=100
             Parameter in pre_process method.
             Brightness modifier for image processing after iterative blur.
 
@@ -61,11 +68,13 @@ class RRITagger:
 
         """
         # Read original image in color
-        image = cv2.imread(name, 1)
+        image = cv2.imread(name, cv2.IMREAD_COLOR)
 
         # Convert disparate images to uniform size
-        if image.shape[0] != 1152 or image.shape[1] != 864:
-            image = cv2.resize(src=image, dsize=(1152, 864))
+        if image.shape[0] != self.IMAGE_HEIGHT or \
+                image.shape[1] != self.IMAGE_WIDTH:
+            image = cv2.resize(src=image, dsize=(self.IMAGE_WIDTH,
+                                                 self.IMAGE_HEIGHT))
 
         # Identify baseline and mask image from non-grayscale components
         baseline, gray_mask, masked_image = self.find_baseline(image=image)
@@ -81,7 +90,8 @@ class RRITagger:
             self.pre_process(image=masked_image, baseline=baseline,
                              wave_position=wave_position,
                              upper_bound=upper_bound, lower_bound=lower_bound,
-                             bright_1=bright_1, bright_2=bright_2,
+                             prior_brightness=prior_brightness,
+                             post_brightness=post_brightness,
                              blur_threshold=blur_threshold,
                              blur_kernal=blur_kernal)
 
@@ -136,6 +146,9 @@ class RRITagger:
         gray: array_like
             Masked image with non-gray components removed.
         """
+        # Numeric constants
+        DEFECT_THRESH = 10
+
         # Find pixels with R==G==B to create color and gray masks
         bg = image[:, :, 0] == image[:, :, 1]  # B == G
         gr = image[:, :, 1] == image[:, :, 2]  # G == R
@@ -153,10 +166,12 @@ class RRITagger:
                                           cv2.THRESH_OTSU)
 
         # Remove small defect on top of many images
-        thresh_image[0:10, :] = 0
+        thresh_image[0:DEFECT_THRESH, :] = 0
 
         # Hough lines algorithm
-        lines = cv2.HoughLines(thresh_image, 1, np.pi / 180, 500)
+        lines = cv2.HoughLines(image=thresh_image, rho=1,
+                               theta=np.pi / 180, threshold=500)
+
         y1, y2 = 0, 0
         for rho, theta in lines[0]:
             a = np.cos(theta)
@@ -195,7 +210,7 @@ class RRITagger:
         gray = cv2.cvtColor(no_color, cv2.COLOR_BGR2GRAY)
         mser = cv2.MSER_create()
         vis = no_color.copy()
-        regions, _ = mser.detectRegions(gray)
+        regions, _ = mser.detectRegions(image=gray)
         hulls = [cv2.convexHull(p.reshape(-1, 1, 2)) for p in regions]
         cv2.polylines(vis, hulls, 1, (0, 255, 0))
         text_mask = np.zeros((no_color.shape[0], no_color.shape[1], 1),
@@ -216,6 +231,7 @@ class RRITagger:
 
         # Apply thresholding to image and find contours
         ret, text_thresh = cv2.threshold(text_gray, 127, 255, 0)
+
         im2, contours, hierarchy = cv2.findContours(text_thresh, 2, 1)
         text_contours = contours
 
@@ -259,8 +275,7 @@ class RRITagger:
 
         return masked_image
 
-    @staticmethod
-    def find_waves(image, baseline):
+    def find_waves(self, image, baseline):
         """
         Identify position of waves (above / below the baseline)
 
@@ -294,22 +309,24 @@ class RRITagger:
         not_black = np.asarray(np.where(np.mean(bright, axis=1) != 0))
         if not_black.size == 0:
             lower_bound = 0
-            upper_bound = 864
+            upper_bound = self.IMAGE_HEIGHT
         else:
             lower_bound = np.min(not_black)
             upper_bound = np.max(not_black)
 
         # Blur and threshold image
-        blur_image = cv2.medianBlur(bright[lower_bound:upper_bound, :],
-                                    ksize=21)
+        blur_image = cv2.medianBlur(
+            src=bright[lower_bound:upper_bound, :],
+            ksize=21)
 
         ret, thresh_image = cv2.threshold(blur_image, 0, 255,
                                           cv2.THRESH_BINARY +
                                           cv2.THRESH_OTSU)
 
         # Piece image back to original size
-        top = np.zeros((lower_bound, 1152), dtype=np.uint8)
-        bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
+        top = np.zeros((lower_bound, self.IMAGE_WIDTH), dtype=np.uint8)
+        bottom = np.zeros(((self.IMAGE_HEIGHT - upper_bound),
+                           self.IMAGE_WIDTH), dtype=np.uint8)
 
         full = np.vstack((top, thresh_image, bottom))
 
@@ -324,26 +341,26 @@ class RRITagger:
 
         # Find portion of waves-only image above and below baseline
         waves_above = waves_only_img[0:baseline, :]
-        waves_below = waves_only_img[baseline:864, :]
+        waves_below = waves_only_img[baseline:self.IMAGE_HEIGHT, :]
         above_vec = waves_above[waves_mask[0:baseline, :] == 255]
-        below_vec = waves_below[waves_mask[baseline:864, :] == 255]
+        below_vec = waves_below[waves_mask[
+                                baseline:self.IMAGE_HEIGHT, :] == 255]
 
         # Return up/down based on the sum of pixel values on either side
         # of the baseline
         if len(above_vec) == 0:
-            return "down", upper_bound, baseline
+            return WavePosition.DOWN, upper_bound, baseline
         elif len(below_vec) == 0:
-            return "up", baseline, lower_bound
+            return WavePosition.UP, baseline, lower_bound
         else:
             if np.sum(above_vec) > np.sum(below_vec):
-                return "up", baseline, lower_bound
+                return WavePosition.UP, baseline, lower_bound
             else:
-                return "down", upper_bound, baseline
+                return WavePosition.DOWN, upper_bound, baseline
 
-    @staticmethod
-    def pre_process(image, baseline, wave_position, upper_bound, lower_bound,
-                    bright_1=60, bright_2=60, blur_threshold=5000000,
-                    blur_kernal=5):
+    def pre_process(self, image, baseline, wave_position, upper_bound,
+                    lower_bound, prior_brightness=100, post_brightness=100,
+                    blur_threshold=5000000, blur_kernal=5):
         """
         Pre-process gray scale image using a number of iterative processing
         steps. The image is first masked for wave position, and then
@@ -374,10 +391,10 @@ class RRITagger:
             Lower bound of the image as defined by the lowest row that is not
             fully black. Allows for proper thresholding.
 
-        bright_1 : int | default=60
+        prior_brightness : int | default=100
             Brightness modifier for image processing prior to iterative blur.
 
-        bright_2 : int | default=60
+        post_brightness : int | default=100
             Brightness modifier for image processing after iterative blur.
 
         blur_threshold : int | default=5000000
@@ -403,8 +420,8 @@ class RRITagger:
         """
         # Black out sides of image and area opposite baseline
         image[:, 0:50] = 0
-        image[:, 1050:1152] = 0
-        if wave_position == "up":
+        image[:, 1050:self.IMAGE_WIDTH] = 0
+        if wave_position == WavePosition.UP:
             image[baseline:, :] = 0
         else:
             image[:baseline, :] = 0
@@ -440,7 +457,7 @@ class RRITagger:
         # Brighten to mean intensity based on initial value
         non_black = np.squeeze(waves_only_img[np.where(waves_only_img != 0)])
         intensity = np.percentile(non_black, 10)
-        bright_adjust = bright_1 / intensity
+        bright_adjust = prior_brightness / intensity
         bright = cv2.convertScaleAbs(waves_only_img, 1, bright_adjust)
 
         # Iterative blur + threshold
@@ -458,7 +475,7 @@ class RRITagger:
         # Brighten again
         non_black = np.squeeze(blur[np.where(blur != 0)])
         intensity = np.percentile(non_black, 10)
-        bright_adjust = bright_2 / intensity
+        bright_adjust = post_brightness / intensity
         bright = cv2.convertScaleAbs(blur, 1, bright_adjust)
 
         # Threshold image
@@ -483,7 +500,7 @@ class RRITagger:
         # indicate the position at which waves have separated into peaks
         row_means = np.mean(full, axis=1)
 
-        if wave_position == "up":
+        if wave_position == WavePosition.UP:
             valid_means = row_means[:max_threshold]
         else:
             valid_means = row_means[max_threshold:]
@@ -516,7 +533,7 @@ class RRITagger:
         """
         im2, contours, hierarchy = cv2.findContours(image,
                                                     cv2.RETR_EXTERNAL,
-                                                    cv2.CHAIN_APPROX_SIMPLE)
+                                                    cv2.CHAIN_APPROX_NONE)
 
         return contours
 
@@ -566,7 +583,7 @@ class RRITagger:
         # Filter contours based on position relative to baseline
         baseline_side = []
         for contour in large:
-            if wave_position == "up":
+            if wave_position == WavePosition.UP:
                 baseline_side.append(
                     contour[np.argmax(contour[:, :, 1])][0][1])
             else:
@@ -589,7 +606,7 @@ class RRITagger:
                                           large_contours_y))
 
         # Set filter threshold
-        if wave_position == "up":
+        if wave_position == WavePosition.UP:
             filtered_contours = \
                 large_contours[large_contours[:, 1] < max_threshold]
         else:
@@ -608,14 +625,14 @@ class RRITagger:
             # Find max and min Y for all unique x-coordinates
             grp_max_y = np.maximum.reduceat(b[:, 1], grp_idx)
             grp_min_y = np.minimum.reduceat(b[:, 1], grp_idx)
-            if wave_location == "up":
+            if wave_location == WavePosition.UP:
                 return np.c_[b[grp_idx, 0], grp_min_y]
             else:
                 return np.c_[b[grp_idx, 0], grp_max_y]
 
         filtered_contours = group_coordinates(filtered_contours, wave_position)
 
-        if wave_position == "up":
+        if wave_position == WavePosition.UP:
             return filtered_contours
         else:
             return filtered_contours
@@ -734,7 +751,7 @@ class RRITagger:
             else:
                 minpeaks = None
 
-            if wave_position == "up":
+            if wave_position == WavePosition.UP:
                 rri = calc_rri(peaks=minpeaks, troughs=maxpeaks,
                                baseline=baseline, wave_position=wave_position)
             else:
@@ -759,7 +776,7 @@ class RRITagger:
         if type(minpeaks) != np.ndarray:
             minpeaks = None
 
-        if wave_position == "up":
+        if wave_position == WavePosition.UP:
             peaks = minpeaks
             troughs = maxpeaks
         else:
