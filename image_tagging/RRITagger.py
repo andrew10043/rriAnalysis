@@ -68,7 +68,7 @@ class RRITagger:
 
         """
         # Read original image in color
-        image = cv2.imread(name, cv2.IMREAD_COLOR)
+        image = cv2.imread(filename=name, flags=cv2.IMREAD_COLOR)
 
         # Convert disparate images to uniform size
         if image.shape[0] != self.IMAGE_HEIGHT or \
@@ -155,14 +155,13 @@ class RRITagger:
         gray_mask = np.bitwise_and(bg, gr, dtype=np.uint8) * 255
         color_mask = 255 - gray_mask
         color_only = cv2.bitwise_and(image, image, mask=color_mask)
-        gray_color = cv2.cvtColor(color_only, cv2.COLOR_BGR2GRAY)
-
-        no_color = cv2.bitwise_and(image, image, mask=gray_mask)
-        gray = cv2.cvtColor(no_color, cv2.COLOR_BGR2GRAY)
+        gray_color = cv2.cvtColor(src=color_only, code=cv2.COLOR_BGR2GRAY)
+        no_color = cv2.bitwise_and(src1=image, src2=image, mask=gray_mask)
+        gray = cv2.cvtColor(src=no_color, code=cv2.COLOR_BGR2GRAY)
 
         # Threshold lines
-        ret, thresh_image = cv2.threshold(gray_color, 0, 255,
-                                          cv2.THRESH_BINARY +
+        ret, thresh_image = cv2.threshold(src=gray_color, thresh=0, maxval=255,
+                                          type=cv2.THRESH_BINARY +
                                           cv2.THRESH_OTSU)
 
         # Remove small defect on top of many images
@@ -204,10 +203,10 @@ class RRITagger:
             Gray scale version of image masked for color, text, and icons.
         """
         # Mask out color components
-        no_color = cv2.bitwise_and(image, image, mask=mask)
+        no_color = cv2.bitwise_and(src1=image, src2=image, mask=mask)
 
         # Find text regions
-        gray = cv2.cvtColor(no_color, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(src=no_color, code=cv2.COLOR_BGR2GRAY)
         mser = cv2.MSER_create()
         vis = no_color.copy()
         regions, _ = mser.detectRegions(image=gray)
@@ -224,13 +223,14 @@ class RRITagger:
         text_mask[0:800, 0:1060] = 255
 
         # Apply text mask
-        no_text = cv2.bitwise_and(no_color, no_color, mask=text_mask)
+        no_text = cv2.bitwise_and(src1=no_color, src2=no_color, mask=text_mask)
 
         # Convert to gray scale for further processing
-        text_gray = cv2.cvtColor(no_text, cv2.COLOR_BGR2GRAY)
+        text_gray = cv2.cvtColor(src=no_text, code=cv2.COLOR_BGR2GRAY)
 
         # Apply thresholding to image and find contours
-        ret, text_thresh = cv2.threshold(text_gray, 127, 255, 0)
+        ret, text_thresh = cv2.threshold(src=text_gray, thresh=127, maxval=255,
+                                         type=0)
 
         im2, contours, hierarchy = cv2.findContours(text_thresh, 2, 1)
         text_contours = contours
@@ -240,8 +240,10 @@ class RRITagger:
         icon2 = cv2.imread("../examples/images/icons/tilted.png", 0)
 
         # Apply thresholding to icons and find contours
-        ret, thresh = cv2.threshold(icon1, 127, 255, 0)
-        ret, thresh2 = cv2.threshold(icon2, 127, 255, 0)
+        ret, thresh = cv2.threshold(src=icon1, thresh=127, maxval=255,
+                                    type=0)
+        ret, thresh2 = cv2.threshold(src=icon2, thresh=127, maxval=255,
+                                     type=0)
         im2, contours, hierarchy = cv2.findContours(thresh, 2, 1)
         icon_1_contour = contours[0]
         im2, contours, hierarchy = cv2.findContours(thresh2, 2, 1)
@@ -269,9 +271,9 @@ class RRITagger:
 
         cont_mask = 255 - cont_mask
 
-        no_icon = cv2.bitwise_and(no_text, no_text, mask=cont_mask)
+        no_icon = cv2.bitwise_and(src1=no_text, src2=no_text, mask=cont_mask)
 
-        masked_image = cv2.cvtColor(no_icon, cv2.COLOR_BGR2GRAY)
+        masked_image = cv2.cvtColor(src=no_icon, code=cv2.COLOR_BGR2GRAY)
 
         return masked_image
 
@@ -302,7 +304,7 @@ class RRITagger:
         """
         # Temporary brighten, blur and threshold to find mask for
         # iterative brightening of waves only
-        bright = cv2.convertScaleAbs(image, 1, 7)
+        bright = cv2.convertScaleAbs(image, alpha=7)
 
         # Define bounds of actual sub-image to ensure proper
         # threshold effect
@@ -319,8 +321,8 @@ class RRITagger:
             src=bright[lower_bound:upper_bound, :],
             ksize=21)
 
-        ret, thresh_image = cv2.threshold(blur_image, 0, 255,
-                                          cv2.THRESH_BINARY +
+        ret, thresh_image = cv2.threshold(src=blur_image, thresh=0, maxval=255,
+                                          type=cv2.THRESH_BINARY +
                                           cv2.THRESH_OTSU)
 
         # Piece image back to original size
@@ -335,8 +337,8 @@ class RRITagger:
         waves_mask = np.bitwise_and(waves, waves, dtype=np.uint8) * 255
 
         # Dilate mask to ensure inclusion of all components of the waves
-        dilated_mask = cv2.dilate(waves_mask, None, iterations=10)
-        waves_only_img = cv2.bitwise_and(image, image,
+        dilated_mask = cv2.dilate(src=waves_mask, kernel=None, iterations=10)
+        waves_only_img = cv2.bitwise_and(src1=image, src2=image,
                                          mask=dilated_mask)
 
         # Find portion of waves-only image above and below baseline
@@ -428,19 +430,20 @@ class RRITagger:
 
         # Temporary brighten, blur and threshold to find mask for
         # iterative brightening of waves only
-        bright = cv2.convertScaleAbs(image, 1, 7)
+        bright = cv2.convertScaleAbs(src=image, alpha=7)
 
         # Blur and threshold image
-        blur_image = cv2.medianBlur(bright[lower_bound:upper_bound, :],
+        blur_image = cv2.medianBlur(src=bright[lower_bound:upper_bound, :],
                                     ksize=21)
 
-        ret, thresh_image = cv2.threshold(blur_image, 0, 255,
-                                          cv2.THRESH_BINARY +
+        ret, thresh_image = cv2.threshold(src=blur_image, thresh=0, maxval=255,
+                                          type=cv2.THRESH_BINARY +
                                           cv2.THRESH_OTSU)
 
         # Piece image back to original size
-        top = np.zeros((lower_bound, 1152), dtype=np.uint8)
-        bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
+        top = np.zeros((lower_bound, self.IMAGE_WIDTH), dtype=np.uint8)
+        bottom = np.zeros(((self.IMAGE_HEIGHT - upper_bound),
+                           self.IMAGE_WIDTH), dtype=np.uint8)
 
         full = np.vstack((top, thresh_image, bottom))
 
@@ -449,26 +452,26 @@ class RRITagger:
         waves_mask = np.bitwise_and(waves, waves, dtype=np.uint8) * 255
 
         # Dilate mask to ensure inclusion of all components of the waves
-        dilated_mask = cv2.dilate(waves_mask, None, iterations=10)
+        dilated_mask = cv2.dilate(src=waves_mask, kernel=None, iterations=10)
 
-        waves_only_img = cv2.bitwise_and(image, image,
+        waves_only_img = cv2.bitwise_and(src1=image, src2=image,
                                          mask=dilated_mask)
 
         # Brighten to mean intensity based on initial value
         non_black = np.squeeze(waves_only_img[np.where(waves_only_img != 0)])
         intensity = np.percentile(non_black, 10)
         bright_adjust = prior_brightness / intensity
-        bright = cv2.convertScaleAbs(waves_only_img, 1, bright_adjust)
+        bright = cv2.convertScaleAbs(src=waves_only_img, alpha=bright_adjust)
 
         # Iterative blur + threshold
         thresh = blur_threshold
         count = 0
         prev_blur = bright
-        blur = cv2.medianBlur(bright, ksize=blur_kernal)
+        blur = cv2.medianBlur(src=bright, ksize=blur_kernal)
         ssd_blur = np.sum((blur - prev_blur) ** 2)
         while ssd_blur > thresh:
             prev_blur = blur
-            blur = cv2.medianBlur(prev_blur, ksize=blur_kernal)
+            blur = cv2.medianBlur(src=prev_blur, ksize=blur_kernal)
             ssd_blur = np.sum((blur - prev_blur) ** 2)
             count += 1
 
@@ -476,18 +479,15 @@ class RRITagger:
         non_black = np.squeeze(blur[np.where(blur != 0)])
         intensity = np.percentile(non_black, 10)
         bright_adjust = post_brightness / intensity
-        bright = cv2.convertScaleAbs(blur, 1, bright_adjust)
+        bright = cv2.convertScaleAbs(src=blur, alpha=bright_adjust)
 
         # Threshold image
-        ret, thresh_image = cv2.threshold(bright[lower_bound:upper_bound, :],
-                                          0, 255,
-                                          cv2.THRESH_BINARY +
-                                          cv2.THRESH_OTSU)
+        ret, thresh_image = cv2.threshold(
+            src=bright[lower_bound:upper_bound, :],
+            thresh=0, maxval=255,
+            type=cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Piece image back to original size
-        top = np.zeros((lower_bound, 1152), dtype=np.uint8)
-        bottom = np.zeros(((864 - upper_bound), 1152), dtype=np.uint8)
-
         full = np.vstack((top, thresh_image, bottom))
 
         # Find the row with maximum intensity (this is the contour threshold
@@ -531,9 +531,12 @@ class RRITagger:
         contours : list of arrays
             A list of all contours, stored as n x 2 arrays (x-coord, y-coord)
         """
-        im2, contours, hierarchy = cv2.findContours(image,
-                                                    cv2.RETR_EXTERNAL,
-                                                    cv2.CHAIN_APPROX_NONE)
+        # Find only the external contours in the hierarchy (cv2.RETR_EXTERNAL),
+        # but keep all individual contour points (cv2.CHAIN_APPROX_NONE)
+        im2, contours, hierarchy = cv2.findContours(
+            image=image,
+            mode=cv2.RETR_EXTERNAL,
+            method=cv2.CHAIN_APPROX_NONE)
 
         return contours
 
@@ -630,7 +633,8 @@ class RRITagger:
             else:
                 return np.c_[b[grp_idx, 0], grp_max_y]
 
-        filtered_contours = group_coordinates(filtered_contours, wave_position)
+        filtered_contours = group_coordinates(a=filtered_contours,
+                                              wave_location=wave_position)
 
         if wave_position == WavePosition.UP:
             return filtered_contours
