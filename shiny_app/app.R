@@ -245,50 +245,39 @@ ui <- bootstrapPage(
                                     "Trough 3" = "t3_select"),
                         selected = "bl_select"),
 
-            # Metric Sliders ----
+            # Sliders ----
             fluidRow(
-              column(4,
-                     sliderInput("bl_slider", "Baseline",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE)
+              column(12,
+                     column(1),
+                     column(10,
+                            sliderInput(inputId = "plot_size", label = "Plot Zoom",
+                                        min = 0.01, max = 2, value = 1, step = 0.01,
+                                        ticks = FALSE)),
+                     column(1)
                      ),
+              column(12,
+                     column(1),
+                     column(10,
+                            sliderInput(inputId = "nudge", label = "Adjust Marker",
+                                        min = 0, max = 1000, value = 500,
+                                        ticks = FALSE)),
+                     column(1)
+              ),
               
-              column(4,
-                     sliderInput("velo_slider", "Scale",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE)
-                     ),
+              column(12, align = "center", offset = 0,
+                     br(),
+                     column(1),
+                     column(2, align = "center",
+                            actionButton(inputId = "prior_metric", label = "",
+                                         icon = icon(name = "arrow-left"))),
+                     column(6, align = "center", offset = 0,
+                            htmlOutput(outputId = "current_metric",
+                                       align = "center")),
+                     column(2, align = "center",
+                            actionButton(inputId = "next_metric", label = "", 
+                                         icon = icon(name = "arrow-right"))),
+                     column(1))
               
-              column(4,
-                     NULL
-                     )
-            ),
-            
-            fluidRow(
-              column(4,
-                     sliderInput("p1_slider", "Peak 1",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE),
-                     sliderInput("t1_slider", "Trough 1",
-                                 min = 1, max = 640, value = 525,
-                                 ticks = FALSE)
-                     ),
-              column(4,
-                     sliderInput("p2_slider", "Peak 2",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE),
-                     sliderInput("t2_slider", "Trough 2",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE)
-                     ),
-              column(4,
-                     sliderInput("p3_slider", "Peak 3",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE),
-                     sliderInput("t3_slider", "Trough 3",
-                                 min = 1, max = 640, value = 600,
-                                 ticks = FALSE)
-                     )
             ),
 
             # Line break ----
@@ -339,40 +328,7 @@ ui <- bootstrapPage(
                                   click = "click"
                        )
                      )
-              ),
-              
-              # Conditional sliders for marker adjustment / plot zoom ----
-              column(12, 
-                     align = "center",
-                     conditionalPanel(
-                       condition = "output.fileUploaded",
-                       
-                       # Line break ----
-                       hr(),
-                       
-                       column(4, align = "center",
-                              sliderInput(inputId = "nudge", label = "Adjust Marker",
-                                          min = 0, max = 1000, value = 500,
-                                          ticks = FALSE)
-                              ),
-                       column(4, align = "center", offset = 0,
-                              br(),
-                              column(3, align = "center",
-                                     actionButton(inputId = "prior_metric", label = "",
-                                                  icon = icon(name = "arrow-left"))),
-                              column(6, align = "center", offset = 0,
-                                     htmlOutput(outputId = "current_metric",
-                                                align = "center")),
-                              column(3, align = "center",
-                                     actionButton(inputId = "next_metric", label = "", 
-                                                  icon = icon(name = "arrow-right")))),
-
-                       column(4, align = "center",
-                              sliderInput(inputId = "plot_size", label = "Plot Zoom",
-                                          min = 0.01, max = 2, value = 1, step = 0.01,
-                                          ticks = FALSE))
-                       )
-                     )
+              )
               )
             )
      )
@@ -1690,6 +1646,8 @@ server <- function(input, output, session) {
       
       structures$bl <- input$click$y
       structures$bl_x <- input$click$x
+      updateSliderInput(session, "bl_slider", val = input$click$y)
+      
 
     } else if (input$metric_select == "velo_select"){
       
