@@ -108,16 +108,8 @@ ui <- bootstrapPage(
                )),
 
    # Slider Colors ----
-   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #FF0000; border-top-color: #FF0000; border-bottom-color: #FF0000; border-color: #FF0000}")),
-   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #FF6900; border-top-color: #FF6900; border-bottom-color: #FF6900; border-color: #FF6900}")),
-   tags$style(HTML(".js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {background: #000CFF; border-top-color: #000CFF; border-bottom-color: #000CFF; border-color: #000CFF}")),
-   tags$style(HTML(".js-irs-3 .irs-single, .js-irs-3 .irs-bar-edge, .js-irs-3 .irs-bar {background: #FF00EB; border-top-color: #FF00EB; border-bottom-color: #FF00EB; border-color: #FF00EB}")),
-   tags$style(HTML(".js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {background: #00FF28; border-top-color: #00FF28; border-bottom-color: #00FF28; border-color: #00FF28}")),
-   tags$style(HTML(".js-irs-5 .irs-single, .js-irs-5 .irs-bar-edge, .js-irs-5 .irs-bar {background: #00F7FF; border-top-color: #00F7FF; border-bottom-color: #00F7FF; border-color: #00F7FF}")),
-   tags$style(HTML(".js-irs-6 .irs-single, .js-irs-6 .irs-bar-edge, .js-irs-6 .irs-bar {background: #F7FF00; border-top-color: #F7FF00; border-bottom-color: #F7FF00; border-color: #F7FF00}")),
-   tags$style(HTML(".js-irs-7 .irs-single, .js-irs-7 .irs-bar-edge, .js-irs-7 .irs-bar {background: #FFFFFF; border-top-color: #FFFFFF; border-bottom-color: #FFFFFF; border-color: #FFFFFF}")),
-   tags$style(HTML(".js-irs-8 .irs-single, .js-irs-8 .irs-bar-edge, .js-irs-8 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
-   tags$style(HTML(".js-irs-9 .irs-single, .js-irs-9 .irs-bar-edge, .js-irs-9 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
+   tags$style(HTML(".js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #000000; border-top-color: #000000; border-bottom-color: #000000; border-color: #000000}")),
+   tags$style(HTML(".js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar {background: #8B888A; border-top-color: #8B888A; border-bottom-color: #8B888A; border-color: #8B888A}")),
    
    # Remove Slider Numbers ----
    tags$style(HTML(".js-irs-0 .irs-from, .irs-to, .irs-min, .irs-max, .irs-single {visibility: hidden !important}")),
@@ -315,7 +307,7 @@ ui <- bootstrapPage(
 
             hr(),
 
-            tags$head(tags$style(".shiny-plot-output{height:70vh !important;}")),
+            tags$head(tags$style(".shiny-plot-output{height:85vh !important;}")),
             
             # Conditional output of image / plot ----
             fluidRow(
@@ -706,7 +698,7 @@ server <- function(input, output, session) {
     }
     
     
-    if (input$passcode == dbMasterPassword){
+    if (input$passcode == dbUploadPassword){
       
       db <- dbConnect(RMySQL::MySQL(), dbname = dbName, host = dbHost, 
                       port = dbPort, user = dbUser, 
@@ -1646,7 +1638,6 @@ server <- function(input, output, session) {
       
       structures$bl <- input$click$y
       structures$bl_x <- input$click$x
-      updateSliderInput(session, "bl_slider", val = input$click$y)
       
 
     } else if (input$metric_select == "velo_select"){
@@ -1892,9 +1883,9 @@ server <- function(input, output, session) {
 
   observeEvent(input$check_pass, {
     
-    if (input$passcode == dbMasterPassword){
+    if (input$passcode == dbUploadPassword){
       pass$x <- "<b><i><font color = red>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
-    } else if (input$passcode != dbMasterPassword){
+    } else if (input$passcode != dbUploadPassword){
       pass$x <- "<b><i><font color = red>Incorrect passcode.<br>Data will not be uploaded to the database.</b></i></font>"
     }
   })
