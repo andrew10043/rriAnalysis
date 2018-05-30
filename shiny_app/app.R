@@ -209,16 +209,16 @@ ui <- bootstrapPage(
                      selectInput(inputId = "paced",
                                   label = "Paced Rhythm?",
                                   choices = c(" " = 999,
-                                              "Yes" = 1,
                                               "No" = 2,
+                                              "Yes" = 1,
                                               "Unclear" = 3),
                                   selected = 999),
                      
                      selectInput(inputId = "rhythm",
                                  label = "Regular Rhythm?",
                                  choices = c(" " = 999,
-                                             "Yes" = 1,
                                              "No" = 2,
+                                             "Yes" = 1,
                                              "Unclear" = 3),
                                   selected = 999)
               )
@@ -283,6 +283,14 @@ ui <- bootstrapPage(
    mainPanel(width = 8,
      
      column(12,
+            
+            fluidRow(
+              column(10,
+                     htmlOutput("pass_flag")
+                     )
+            ),
+            
+            hr(),
             
             # Text showing current image ID and image progress ----
             fluidRow(
@@ -620,16 +628,16 @@ server <- function(input, output, session) {
     updateSelectInput(session, inputId = "paced",
                       label = "Paced Rhythm?",
                       choices = c(" " = 999,
-                                  "Yes" = 1,
                                   "No" = 2,
+                                  "Yes" = 1,
                                   "Unclear" = 3),
                       selected = 999)
     
     updateSelectInput(session, inputId = "rhythm",
                       label = "Regular Rhythm?",
                       choices = c(" " = 999,
-                                  "Yes" = 1,
                                   "No" = 2,
+                                  "Yes" = 1,
                                   "Unclear" = 3),
                       selected = 999)
     
@@ -1875,18 +1883,23 @@ server <- function(input, output, session) {
     return(is.null(inFile()))
     
   })
-  
+
   # Check passcode for text output ----
   pass <- reactiveValues(x = "<b><i><font color = red>Please enter a passcode.</b></i></font>")
+  pass_warn <- reactiveValues(x = "<b><i><font color = red><font size = 5>WARNING: Passcode not entered. Data will not be uploaded to the database when submitted.</b></i></font>")
   
   output$pass_text <- renderText(pass$x)
+  output$pass_flag <- renderText(pass_warn$x)
 
   observeEvent(input$check_pass, {
     
     if (input$passcode == dbUploadPassword){
-      pass$x <- "<b><i><font color = red>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
+      pass$x <- "<b><i><font color = green>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
+      pass_warn$x <- "<b><i><font color = green><font size = 2>Passcode verified. Data will be uploaded to the database when submitted.</b></i></font>"
+      
     } else if (input$passcode != dbUploadPassword){
       pass$x <- "<b><i><font color = red>Incorrect passcode.<br>Data will not be uploaded to the database.</b></i></font>"
+      pass_warn$x <- "<b><i><font color = red><font size = 5>WARNING: Incorrect passcode. Data will not be uploaded to the database when submitted.</b></i></font>"
     }
   })
   
