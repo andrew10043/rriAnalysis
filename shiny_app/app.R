@@ -1885,7 +1885,7 @@ server <- function(input, output, session) {
   })
 
   # Check passcode for text output ----
-  pass <- reactiveValues(x = "<b><i><font color = red>Please enter a passcode.</b></i></font>")
+  pass <- reactiveValues(x = "<b><i><font color = red><font size = 3>WARNING: Please enter and verify a passcode to ensure data is uploaded to the database.</b></i></font>")
   pass_warn <- reactiveValues(x = "<b><i><font color = red><font size = 5>WARNING: Passcode not entered. Data will not be uploaded to the database when submitted.</b></i></font>")
   
   output$pass_text <- renderText(pass$x)
@@ -1894,11 +1894,11 @@ server <- function(input, output, session) {
   observeEvent(input$check_pass, {
     
     if (input$passcode == dbUploadPassword){
-      pass$x <- "<b><i><font color = green>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
+      pass$x <- "<b><i><font color = green><font size = 3>Passcode verified.<br>Data will be uploaded to the database after each image submission.</b></i></font>"
       pass_warn$x <- "<b><i><font color = green><font size = 2>Passcode verified. Data will be uploaded to the database when submitted.</b></i></font>"
       
     } else if (input$passcode != dbUploadPassword){
-      pass$x <- "<b><i><font color = red>Incorrect passcode.<br>Data will not be uploaded to the database.</b></i></font>"
+      pass$x <- "<b><i><font color = red><font size = 3>WARNING: Incorrect passcode.<br>Data will not be uploaded to the database.</b></i></font>"
       pass_warn$x <- "<b><i><font color = red><font size = 5>WARNING: Incorrect passcode. Data will not be uploaded to the database when submitted.</b></i></font>"
     }
   })
