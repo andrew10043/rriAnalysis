@@ -1,6 +1,6 @@
 # Renal Resistive Index (RRI) Analysis
 
 ## Repository Contents:
-- **examples** - examples of key functionality.
-- **image_tagging** - Python (OpenCV) algorithms for processing of static RRI images and automatic identification of Doppler wave peaks and troughs.
+- **examples** - examples of basic algorithm functionality.
+- **image_tagging** - Python computer vision (OpenCV) algorithms for processing of static renal Doppler waveforms and automatic identification of Doppler parameters.
 - **shiny_app** - Shiny web application for interactive RRI analysis.
